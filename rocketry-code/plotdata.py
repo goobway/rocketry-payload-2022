@@ -6,8 +6,8 @@
 import serial
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from mpl_toolkits import mplot3d
+import math as m
 from drawnow import *
 
 SERIALPORT = '/dev/ttyACM0'
