@@ -42,35 +42,34 @@ void loop() {
   imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
   /* print to serial monitor */
+  Serial.print(system);     // system calibration number
+  Serial.print(",");
   /* acceleration data */
   Serial.print(acc.x());    // accel. in x direction
   Serial.print(",");
   Serial.print(acc.y());    // accel. in y direction
   Serial.print(",");
   Serial.print(acc.z());    // accel. in z direction (gravity)
-//  Serial.print(",");
-//  Serial.print(accCal);     // accel. calibration number
-//  Serial.print(",");
-//  Serial.print(gyroCal);    // gyro calibration number
-//  Serial.print(",");
-//  Serial.print(magCal);     // mag. calibration number
-//  Serial.print(",");
-//  Serial.print(system);
-
-//  Serial.print(",");
-//  /* gyroscope data */
-//  Serial.print(gyro.x());   // rotational velocity in x direction
-//  Serial.print(",");
-//  Serial.print(gyro.y());   // rotational velocity in y direction
-//  Serial.print(",");
-//  Serial.print(gyro.z());   // rotational velocity in z direction
-//  Serial.print(",");
-//  /* magnetometer data */
-//  Serial.print(mag.x());    // mag. field in x direction
-//  Serial.print(",");
-//  Serial.print(mag.y());    // mag. field in y direction
-//  Serial.print(",");
-//  Serial.print(mag.z());    // mag. field in z direction
+  Serial.print(",");
+  Serial.print(accCal);     // accel. calibration number
+  Serial.print(",");
+  /* gyroscope data */
+  Serial.print(gyro.x());   // rotational velocity in x direction
+  Serial.print(",");
+  Serial.print(gyro.y());   // rotational velocity in y direction
+  Serial.print(",");
+  Serial.print(gyro.z());   // rotational velocity in z direction
+  Serial.print(",");
+  Serial.print(gyroCal);    // gyro calibration number
+  Serial.print(",");
+  /* magnetometer data */
+  Serial.print(mag.x());    // mag. field in x direction
+  Serial.print(",");
+  Serial.print(mag.y());    // mag. field in y direction
+  Serial.print(",");
+  Serial.print(mag.z());    // mag. field in z direction
+  Serial.print(",");
+  Serial.print(magCal);     // mag. calibration number
   Serial.print("\n");
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
