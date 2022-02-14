@@ -22,10 +22,11 @@ yaw = []
 
 # determine cardinal coordinate
 def degrees_to_cardinal(d):
-    dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-    ix = int((d + 11.25)/22.5)
-    return dirs[ix % 16]
+    direction = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                 "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    ix = int((d + 11.25) / 22.5)
+    print(ix)
+    return direction[ix % len(direction)]
 
 
 def makeGraph():
