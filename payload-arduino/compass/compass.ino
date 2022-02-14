@@ -12,14 +12,24 @@
 #include <math.h>
 
 /* define variables */
-#define M_PI 3.14159265358979323846 /* pi */
+#define M_PI 3.14159265358979323846 // pi
 
-float phiM;             // phi measured
-float thetaM;           // theta measured
+float phi;              // system phi
+float theta;            // system theta
+
+float phiAcc;           // phi measured from accel.
+float thetaAcc;         // theta measured from accel.
+
+float phiGyro = 0;      // phi measured from gyro
+float thetaGyro = 0;    // theta measured from gyro
+
 float phiFold = 0;      // phi filtered, old
 float phiFnew;          // phi filtered, new
 float thetaFold = 0;    // phi filtered, old
 float thetaFnew;        // phi filtered, new
+
+float dt;               // change in time since last measurement
+unsigned long millisOld;
 
 /* set time delay between samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
@@ -34,6 +44,7 @@ void setup() {
   
   /* use crystal reference on board (not chip) */
   bno.setExtCrystalUse(true);
+  millisOld = millis();
   
   /* temperature reading */
   int8_t temp = bno.getTemp();
@@ -51,13 +62,27 @@ void loop() {
   /* vector of 3 components saved to "mag" variable, talking to IMU object*/
   imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
-  /* calculating measured tilt (XYZ) */
-  phiM = atan2(acc.y(), acc.z())/2/M_PI*360;      // X (roll), degress
-  thetaM = atan2(acc.x(), acc.z())/2/M_PI*360;    // Y (pitch), degress
+  /* traking time change, dt in seconds */  
+  dt = (millis()-millisOld)/1000.0;
+  millisOld=millis();  
+
+  /* calculating measured tilt (XYZ): acceleraometer */
+  phiAcc = atan2(acc.y(), acc.z())/2/M_PI*360;    // X (roll), degress
+  thetaAcc = atan2(acc.x(), acc.z())/2/M_PI*360;  // Y (pitch), degress
+
+  phi = 0.95*(phi + gyro.x()*dt) + 0.05*phiAcc;
+  theta = 0.95*(theta + gyro.y()*dt) + 0.05*thetaAcc;
+
+  /* calculating measured tilt (XYZ): gyroscope */
+  thetaGyro = thetaGyro + gyro.y()*dt;            // X (roll), degress
+  phiGyro = phiGyro + gyro.x()*dt;                // Y (pitch), degress
 
   /* low-pass filer on tilt/angle measurements */
-  phiFnew = 0.95*phiFold + 0.05*phiM;
-  thetaFnew = 0.95*thetaFold + 0.05*thetaM;
+  phiFnew = 0.95*phiFold + 0.05*phiAcc;
+  thetaFnew = 0.95*thetaFold + 0.05*thetaAcc;
+
+  /* complimentary filter on tilt/angle measurements */
+  //phiSys = 0.95*phiGyro + 0.05*phiFnew;
   
   /* print to serial monitor */
   Serial.print(system);     // system calibration number
@@ -90,13 +115,21 @@ void loop() {
   Serial.print(magCal);     // mag. calibration number
   Serial.print(",");
   /* angle data */
-  Serial.print(phiM);       // phi measured
+  Serial.print(phiAcc);     // phi (roll), accel.
   Serial.print(",");
-  Serial.print(thetaM);     // theta measured
+  Serial.print(thetaAcc);   // theta (pitch), accel.
   Serial.print(",");
-  Serial.print(phiFnew);    // phi filtered
+  Serial.print(phiGyro);    // phi (roll), gyro
   Serial.print(",");
-  Serial.print(thetaFnew);  // theta filtered
+  Serial.print(thetaGyro);  // theta (pitch) gyro
+  Serial.print(",");
+  Serial.print(phiFnew);    // phi (roll) low-pass filter, accel.
+  Serial.print(",");
+  Serial.print(thetaFnew);  // theta (pitch) low-pass filter, accel.
+  Serial.print(",");
+  Serial.print(phi);        // phi (roll), system
+  Serial.print(",");
+  Serial.print(theta);      // theta (pitch), system
   Serial.print("\n");
 
   /* update phi and theta filter values */
