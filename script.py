@@ -63,6 +63,5 @@ while True:
     cnt = cnt + 1
     # hold no more than 100 points in each array
     if cnt > 100:
-        time.pop(0)
         pitch.pop(0)
         roll.pop(0)
