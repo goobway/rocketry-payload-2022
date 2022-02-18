@@ -9,11 +9,15 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <Cardinal.h>
 
 /* set time delay between samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
+
+Cardinal cardinal;
+int cardInt;
 
 void setup() {
   /* initialize BNO055 */
@@ -33,8 +37,11 @@ void loop(void) {
   /* vector of 3 components saved to "euler" variable, talking to IMU object*/
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
 
-  /* display the floating point data */
+  cardInt = cardinal.getInteger(3, euler.x());
+  
+  /* display data */
   Serial.println(euler.x());
+  Serial.println(cardinal.getString(3, euler.x()));
 
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
