@@ -14,7 +14,6 @@
 #include <utility/imumaths.h>
 #include <Cardinal.h>
 
-
 // Pin Values
 const int pin_Buzzer = 7;   // Associate the Piezo Buzzer with DIGITAL 7
 
@@ -42,7 +41,6 @@ int flag_programEnded   = 0;    // Flag for marking whether or not the program w
 
 // Variables for data comparison
 double heading;   // Variable for holding the initial compass heading of the rocket
-int cardinal_integer;
 
 static double dataSet_current_BNO1[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
 static double dataSet_current_BNO2[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
@@ -81,16 +79,17 @@ void setup() {
   SD.remove("dataIMU1.csv");    // Remove "dataIMU1.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataIMU2.csv");    // Remove "dataIMU2.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataDisp.csv");    // Remove "dataDisp.csv" from the SD Card if it already exists; needed for resetting files between runs
-  SD.remove("dataHead.csv");
+  SD.remove("dataHead.csv");    // Remove "dataHead.csv" from the SD Card if it already exists; needed for resetting files between runs
 
   BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
-  BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z]");    // Print the column headers to BNO055_1
+  BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z]");    // Print the column headers to BNO055_1
   BNO055_2 = SD.open("dataIMU2.csv", FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
-  BNO055_2.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z]");    // Print the column headers to BNO055_2
+  BNO055_2.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z]");    // Print the column headers to BNO055_2
 
   Displacement = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the Displacement file object
   Displacement.println("### !!! ### ADD COLUMN HEADER INFORMATION HERE!!!");
   headingData = SD.open("dataHead.csv", FILE_WRITE);
+  headingData.println("Timestamp,Mag [X],Mag [Y],Mag [Z],Yaw,Cardinal String,Cardinal Int");
   
 
   // Indicate Successful Start Up
@@ -161,7 +160,9 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   fileName.print(",");    // Print a separator to the specified file
 
   double* accelPtr = get_accelerometerData(sensorNum);    // Save the accelerometer data array from the specified BNO055
-  double* gyroPtr = get_gyroscopeData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
+  double* linAccelPtr = get_linearAccelData(sensorNum);    // Save the accelerometer data array from the specified BNO055
+  double* gyroPtr = get_angVelocityData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
+  double* eulerPtr = get_eulerData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
 
   if (fileName == BNO055_1) {
     // ### !!! ### Set dataSet_previous_BNO1 = dataSet_current_BNO1
@@ -179,12 +180,28 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   fileName.print(accelPtr[2]);    // Print the z axis accelerometer data to the specified file
   fileName.print(",");    // Print a separator to the specified file
 
+  // Linear Accelerometer
+  fileName.print(linAccelPtr[0]);    // Print the x axis accelerometer data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.print(linAccelPtr[1]);    // Print the y axis accelerometer data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.print(linAccelPtr[2]);    // Print the z axis accelerometer data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+
   // Gyroscope
   fileName.print(gyroPtr[0]);   // Print the x axis gyroscope data to the specified file
   fileName.print(",");    // Print a separator to the specified file
   fileName.print(gyroPtr[1]);   // Print the y axis gyroscope data to the specified file
   fileName.print(",");    // Print a separator to the specified file
   fileName.print(gyroPtr[2]);   // Print the z axis gyroscope data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+
+  // Euler
+  fileName.print(eulerPtr[0]);   // Print the x axis gyroscope data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.print(eulerPtr[1]);   // Print the y axis gyroscope data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.print(eulerPtr[2]);   // Print the z axis gyroscope data to the specified file
   fileName.print(",");    // Print a separator to the specified file
 }
 
@@ -195,18 +212,30 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
 // Function for obtaining the cardinal heading of the rocket once it is on the rail
 void getCardinalHeading() {
   boolean headingFound = false;
-  double calculatedHeading = 0;   // Variable for holding the value of the found heading
+  double magX, magY;
+  double calculatedYaw = 0;   // Variable for holding the value of the found heading
+  int cardinal_integer;
+  String cardinal_string;
+  Cardinal cardinal;
   imu::Vector<3> mag = BNO1.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+  magX = get_magnetometerData(BNO1)[0];
+  magY = get_magnetometerData(BNO1)[1];
+
   // ### !!! ### ADD CALISTA'S CODE HERE
-  calculatedHeading = atan2(mag.y(), mag.x())*180/M_PI;
-  while(calculatedHeading < 0) {
-    calculatedHeading += 360;
+  calculatedYaw = atan2(magY, magX)*180/M_PI;
+  while(calculatedYaw < 0) {
+    calculatedYaw += 360;
   }
+
+  cardinal_integer = cardinal.getInteger(3, calculatedYaw);
+  cardinal_string = cardinal.getString(3, calculatedYaw);
   
   if (headingFound) {
     flag_hasHeading = 1;
-    heading = calculatedHeading;
-    headingData.println(heading);
+    heading = calculatedYaw;
+    headingData.print(calculatedYaw);
+    headingData.print(cardinal_integer);
+    headingData.println(cardinal_string);
   }
 }
 
@@ -271,12 +300,44 @@ double* get_accelerometerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO0
   return xyz;   // Return the array
 }
 
-// Function for obtaining the gyroscope data from the specified BNO055; returns an array of the three axis values
-double* get_gyroscopeData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
-  sensors_event_t gyroscopeData;    // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&gyroscopeData, Adafruit_BNO055::VECTOR_EULER);    // Get the specified data from the specified BNO055 event
+// Function for obtaining the linear accelerometer data from the specified BNO055; returns an array of the three axis values
+double* get_linearAccelData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+  sensors_event_t linearAccelData;    // Create a sensors_event_t for holding the data event
+  sensorNum.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);    // Get the specified data from the specified BNO055 event
 
-  sensors_event_t* event = &gyroscopeData;    // Save the data to a sensors_event_t* variable
+  sensors_event_t* event = &linearAccelData;    // Save the data to a sensors_event_t* variable
+
+  static double xyz[3];   // Create an array for holding the three axis values
+
+  xyz[0] = event->acceleration.x;   // Save the x axis data to xyz
+  xyz[1] = event->acceleration.y;   // Save the y axis data to xyz
+  xyz[2] = event->acceleration.z;   // Save the z axis data to xyz
+
+  return xyz;   // Return the array
+}
+
+// Function for obtaining the gyroscope data from the specified BNO055; returns an array of the three axis values
+double* get_angVelocityData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+  sensors_event_t angVelocityData;    // Create a sensors_event_t for holding the data event
+  sensorNum.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);    // Get the specified data from the specified BNO055 event
+
+  sensors_event_t* event = &angVelocityData;    // Save the data to a sensors_event_t* variable
+
+  static double xyz[3];   // Create an array for holding the three axis values
+
+  xyz[0] = event->gyro.x;    // Save the x axis data to xyz
+  xyz[1] = event->gyro.y;    // Save the y axis data to xyz
+  xyz[2] = event->gyro.z;    // Save the z axis data to xyz
+
+  return xyz;   // Return the array
+}
+
+// Function for obtaining the euler angle data from the specified BNO055; returns an array of the three axis values
+double* get_eulerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+  sensors_event_t orientationData;    // Create a sensors_event_t for holding the data event
+  sensorNum.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);    // Get the specified data from the specified BNO055 event
+
+  sensors_event_t* event = &orientationData;    // Save the data to a sensors_event_t* variable
 
   static double xyz[3];   // Create an array for holding the three axis values
 
