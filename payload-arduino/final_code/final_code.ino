@@ -14,9 +14,10 @@
 #include <utility/imumaths.h>
 #include <Cardinal.h>
 
+#define BNO055_SAMPLERATE_DELAY_MS (500)
+
 // Pin Values
 const int pin_Buzzer = 7;   // Associate the Piezo Buzzer with DIGITAL 7
-
 
 // BNO055 Objects
 Adafruit_BNO055 BNO1 = Adafruit_BNO055(55, 0x28);   // BNO055 Object For The 1st BNO055 IMU
@@ -51,6 +52,12 @@ double heading;   // Variable for holding the initial compass heading of the roc
 //static double dataSet_older_BNO2[6];   // Array for holding an older set of data (e.g. a minute ago) from the 1st BNO055 for checking if the rocket is "at rest"
 
 
+// Variables For Timing
+unsigned long recordDurationMinutes = 40;
+unsigned long recordDurationMS = recordDurationMinutes * 60 * 1000;
+unsigned long startTime = millis();
+unsigned long currentTimestamp = startTime;
+
 // ====================================================================
 // Setup & Loop
 // ====================================================================
@@ -82,49 +89,67 @@ void setup() {
   SD.remove("dataHead.csv");    // Remove "dataHead.csv" from the SD Card if it already exists; needed for resetting files between runs
 
   BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
-  BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z]");    // Print the column headers to BNO055_1
+  BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers to BNO055_1
   BNO055_2 = SD.open("dataIMU2.csv", FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
-  BNO055_2.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z]");    // Print the column headers to BNO055_2
+  BNO055_2.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Linear Accel. [X],Linear Accel. [Y],Linear Accel. [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Euler [X],Euler [Y],Euler [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers to BNO055_2
 
   Displacement = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the Displacement file object
   Displacement.println("### !!! ### ADD COLUMN HEADER INFORMATION HERE!!!");
   headingData = SD.open("dataHead.csv", FILE_WRITE);
   headingData.println("Timestamp,Mag [X],Mag [Y],Mag [Z],Yaw,Cardinal String,Cardinal Int");
-  
+
 
   // Indicate Successful Start Up
   buzzer_playStartTone();   // Play the "start up" tone to tell the user that the program started successfully
+
+  startTime = millis();
+  currentTimestamp = startTime;
 }
 
 // Program Loop
 void loop() {
   // Get Cardinal Heading
-  while (!flag_hasHeading) {
-    // ### !!! ### Need to ensure that the rocket is on the rail before the heading is read
-    getCardinalHeading();
-  }
+  //  while (!flag_hasHeading) {
+  //    // ### !!! ### Need to ensure that the rocket is on the rail before the heading is read
+  //    getCardinalHeading();
+  //    startTime = millis();
+  //  }
 
   // Wait until the rocket has launched
-//  while (!flag_hasLaunched) {
-//    checkForLaunch();
-//  }
+  //  while (!flag_hasLaunched) {
+  //    checkForLaunch();
+  //  }
 
   // Record data while the rocket is in-flight
-  while (flag_inFlight) {
-    unsigned long currentTimestamp = millis();
+  //  while (flag_inFlight) {
+  //    unsigned long currentTimestamp = millis();
+  //    writeToSD(BNO055_1, BNO1, currentTimestamp);
+  //    writeToSD(BNO055_2, BNO2, currentTimestamp);
+  //
+  //    calculateDisplacement();
+  //
+  //    // Check to see if the rocket has landed and is "at rest"
+  //    checkForLand();
+  //  }
+
+  while ((currentTimestamp - startTime) < recordDurationMS) {
+    currentTimestamp = millis();
     writeToSD(BNO055_1, BNO1, currentTimestamp);
     writeToSD(BNO055_2, BNO2, currentTimestamp);
-
-    calculateDisplacement();
-
-    // Check to see if the rocket has landed and is "at rest"
-    checkForLand();
+    delay(BNO055_SAMPLERATE_DELAY_MS);
   }
 
   // If the rocket is no longer in flight, end the program
   if (!flag_programEnded) {
     endProgram();
   }
+
+  tone(pin_Buzzer, 3500, 100);
+  delay(200);
+  tone(pin_Buzzer, 3500, 100);
+  delay(200);
+
+  delay(500);
 }
 
 
@@ -163,6 +188,7 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   double* linAccelPtr = get_linearAccelData(sensorNum);    // Save the linear accelerometer data array from the specified BNO055
   double* gyroPtr = get_angVelocityData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
   double* eulerPtr = get_eulerData(sensorNum);   // Save the gyroscoped (euler) data array from the specified BNO055
+  double* magPtr = get_magnetometerData(sensorNum);
 
   if (fileName == BNO055_1) {
     // ### !!! ### Set dataSet_previous_BNO1 = dataSet_current_BNO1
@@ -203,6 +229,13 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   fileName.print(",");    // Print a separator to the specified file
   fileName.print(eulerPtr[2]);   // Print the z axis euler data to the specified file
   fileName.print(",");    // Print a separator to the specified file
+
+  // Magnetometer
+  fileName.print(magPtr[0]);   // Print the x axis euler data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.print(magPtr[1]);   // Print the y axis euler data to the specified file
+  fileName.print(",");    // Print a separator to the specified file
+  fileName.println(magPtr[2]);   // Print the z axis euler data to the specified file
 }
 
 // --------------------------------------------------------------------
@@ -222,14 +255,14 @@ void getCardinalHeading() {
   magY = magPtr[1];
 
   // ### !!! ### ADD CALISTA'S CODE HERE
-  calculatedYaw = atan2(magY, magX)*180/M_PI;
-  while(calculatedYaw < 0) {
+  calculatedYaw = atan2(magY, magX) * 180 / M_PI;
+  while (calculatedYaw < 0) {
     calculatedYaw += 360;
   }
 
   cardinal_integer = cardinal.getInteger(3, calculatedYaw);
   cardinal_string = cardinal.getString(3, calculatedYaw);
-  
+
   if (headingFound) {
     heading = calculatedYaw;
     // Magnetometer
