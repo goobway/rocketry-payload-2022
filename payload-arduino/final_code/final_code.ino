@@ -12,6 +12,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <Cardinal.h>
 
 
 // Pin Values
@@ -29,17 +30,19 @@ File BNO055_2;    // File object for the 2nd BNO055 data
 
 // File object associated with the displacement data
 File Displacement;    // File object for the displacement calculations
+File headingData;
 
 
 // Flag Variables
 int flag_hasHeading     = 0;    // Flag for marking whether or not the heading of the rocket on the rail has been obtained
 int flag_hasLaunched    = 0;   // Flag for marking whether or not the rocket has launched yet
-int flag_inFlight       = 0;    // Flag for marking whether or not the rocket is in-flight
+int flag_inFlight       = 1;    // Flag for marking whether or not the rocket is in-flight
 int flag_programEnded   = 0;    // Flag for marking whether or not the program was successfully ended
 
 
 // Variables for data comparison
 double heading;   // Variable for holding the initial compass heading of the rocket
+int cardinal_integer;
 
 static double dataSet_current_BNO1[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
 static double dataSet_current_BNO2[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
@@ -78,6 +81,7 @@ void setup() {
   SD.remove("dataIMU1.csv");    // Remove "dataIMU1.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataIMU2.csv");    // Remove "dataIMU2.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataDisp.csv");    // Remove "dataDisp.csv" from the SD Card if it already exists; needed for resetting files between runs
+  SD.remove("dataHead.csv");
 
   BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
   BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z]");    // Print the column headers to BNO055_1
@@ -86,6 +90,8 @@ void setup() {
 
   Displacement = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the Displacement file object
   Displacement.println("### !!! ### ADD COLUMN HEADER INFORMATION HERE!!!");
+  headingData = SD.open("dataHead.csv", FILE_WRITE);
+  
 
   // Indicate Successful Start Up
   buzzer_playStartTone();   // Play the "start up" tone to tell the user that the program started successfully
@@ -100,9 +106,9 @@ void loop() {
   }
 
   // Wait until the rocket has launched
-  while (!flag_hasLaunched) {
-    checkForLaunch();
-  }
+//  while (!flag_hasLaunched) {
+//    checkForLaunch();
+//  }
 
   // Record data while the rocket is in-flight
   while (flag_inFlight) {
@@ -190,12 +196,17 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
 void getCardinalHeading() {
   boolean headingFound = false;
   double calculatedHeading = 0;   // Variable for holding the value of the found heading
-
+  imu::Vector<3> mag = BNO1.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
   // ### !!! ### ADD CALISTA'S CODE HERE
-
+  calculatedHeading = atan2(mag.y(), mag.x())*180/M_PI;
+  while(calculatedHeading < 0) {
+    calculatedHeading += 360;
+  }
+  
   if (headingFound) {
     flag_hasHeading = 1;
     heading = calculatedHeading;
+    headingData.println(heading);
   }
 }
 
@@ -226,6 +237,8 @@ void checkForLand() {
 void endProgram() {
   BNO055_1.close();   // Close the File object associated with the 1st BNO055
   BNO055_2.close();   // Close the File object associated with the 2nd BNO055
+  Displacement.close();
+  headingData.close();
 
   flag_programEnded = 1;    // Set the programEnded flag HIGH so that the function only runs once
 }
