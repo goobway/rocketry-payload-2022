@@ -42,13 +42,13 @@ int flag_programEnded   = 0;    // Flag for marking whether or not the program w
 // Variables for data comparison
 double heading;   // Variable for holding the initial compass heading of the rocket
 
-static double dataSet_current_BNO1[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
-static double dataSet_current_BNO2[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
-static double dataSet_previous_BNO1[6] = {0, 0, 0, 0, 0, 0};   // Array for holding the previous set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
-static double dataSet_previous_BNO2[6] = {0, 0, 0, 0, 0, 0};   // Array for holding the previous set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
+//static double dataSet_current_BNO1[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
+//static double dataSet_current_BNO2[6]  = {0, 0, 0, 0, 0, 0};    // Array for holding the current set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
+//static double dataSet_previous_BNO1[6] = {0, 0, 0, 0, 0, 0};   // Array for holding the previous set of IMU recordings from the 1st BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
+//static double dataSet_previous_BNO2[6] = {0, 0, 0, 0, 0, 0};   // Array for holding the previous set of IMU recordings from the 2nd BNO055; [Ax, Ay, Az, Gz, Gy, Gz]
 
-static double dataSet_older_BNO1[6];   // Array for holding an older set of data (e.g. a minute ago) from the 1st BNO055 for checking if the rocket is "at rest"
-static double dataSet_older_BNO2[6];   // Array for holding an older set of data (e.g. a minute ago) from the 1st BNO055 for checking if the rocket is "at rest"
+//static double dataSet_older_BNO1[6];   // Array for holding an older set of data (e.g. a minute ago) from the 1st BNO055 for checking if the rocket is "at rest"
+//static double dataSet_older_BNO2[6];   // Array for holding an older set of data (e.g. a minute ago) from the 1st BNO055 for checking if the rocket is "at rest"
 
 
 // ====================================================================
@@ -160,9 +160,9 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   fileName.print(",");    // Print a separator to the specified file
 
   double* accelPtr = get_accelerometerData(sensorNum);    // Save the accelerometer data array from the specified BNO055
-  double* linAccelPtr = get_linearAccelData(sensorNum);    // Save the accelerometer data array from the specified BNO055
+  double* linAccelPtr = get_linearAccelData(sensorNum);    // Save the linear accelerometer data array from the specified BNO055
   double* gyroPtr = get_angVelocityData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
-  double* eulerPtr = get_eulerData(sensorNum);   // Save the gyroscoped data array from the specified BNO055
+  double* eulerPtr = get_eulerData(sensorNum);   // Save the gyroscoped (euler) data array from the specified BNO055
 
   if (fileName == BNO055_1) {
     // ### !!! ### Set dataSet_previous_BNO1 = dataSet_current_BNO1
@@ -197,11 +197,11 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
   fileName.print(",");    // Print a separator to the specified file
 
   // Euler
-  fileName.print(eulerPtr[0]);   // Print the x axis gyroscope data to the specified file
+  fileName.print(eulerPtr[0]);   // Print the x axis euler data to the specified file
   fileName.print(",");    // Print a separator to the specified file
-  fileName.print(eulerPtr[1]);   // Print the y axis gyroscope data to the specified file
+  fileName.print(eulerPtr[1]);   // Print the y axis euler data to the specified file
   fileName.print(",");    // Print a separator to the specified file
-  fileName.print(eulerPtr[2]);   // Print the z axis gyroscope data to the specified file
+  fileName.print(eulerPtr[2]);   // Print the z axis euler data to the specified file
   fileName.print(",");    // Print a separator to the specified file
 }
 
@@ -213,13 +213,13 @@ void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp
 void getCardinalHeading() {
   boolean headingFound = false;
   double magX, magY;
+  double* magPtr = get_magnetometerData(BNO1);   // Save the gyroscoped (euler) data array from the specified BNO055
   double calculatedYaw = 0;   // Variable for holding the value of the found heading
   int cardinal_integer;
   String cardinal_string;
   Cardinal cardinal;
-  imu::Vector<3> mag = BNO1.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
-  magX = get_magnetometerData(BNO1)[0];
-  magY = get_magnetometerData(BNO1)[1];
+  magX = magPtr[0];
+  magY = magPtr[1];
 
   // ### !!! ### ADD CALISTA'S CODE HERE
   calculatedYaw = atan2(magY, magX)*180/M_PI;
@@ -231,11 +231,20 @@ void getCardinalHeading() {
   cardinal_string = cardinal.getString(3, calculatedYaw);
   
   if (headingFound) {
-    flag_hasHeading = 1;
     heading = calculatedYaw;
+    // Magnetometer
+    headingData.print(magPtr[0]);   // Print the x axis euler data to the specified file
+    headingData.print(",");    // Print a separator to the specified file
+    headingData.print(magPtr[1]);   // Print the y axis euler data to the specified file
+    headingData.print(",");    // Print a separator to the specified file
+    headingData.print(magPtr[2]);   // Print the z axis euler data to the specified file
+    headingData.print(",");    // Print a separator to the specified file
     headingData.print(calculatedYaw);
-    headingData.print(cardinal_integer);
-    headingData.println(cardinal_string);
+    headingData.print(",");    // Print a separator to the specified file
+    headingData.print(cardinal_string);
+    headingData.print(",");    // Print a separator to the specified file
+    headingData.println(cardinal_integer);
+    flag_hasHeading = 1;
   }
 }
 
