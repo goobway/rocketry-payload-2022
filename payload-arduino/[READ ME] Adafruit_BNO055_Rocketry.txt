@@ -1,0 +1,8 @@
+The sensor MUST be set to a non-fusion mode in order to use the non-default 4G. This can be done using .setMode().
+
+Using the library I updated, we can simply call .setGRange(gRange) to update the range.
+	gRange Values
+		2G		→	BNO#.setGRange(0x0C)
+		4G (Default)	→	BNO#.setGRange(0x0D)
+		8G		→	BNO#.setGRange(0x0E)
+		16G		→	BNO#.setGRange(0x0F)
