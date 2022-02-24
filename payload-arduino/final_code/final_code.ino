@@ -4,7 +4,7 @@
 // File: Flight_Code
 // Description: The final code for the payload for the FRR launch.
 // Date: 2/19/2022
-
+ 
 
 // --------------------------------------------------------------------
 // Error Code List
@@ -20,9 +20,25 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
+#include <Adafruit_BNO055_Rocketry.h>
 #include <utility/imumaths.h>
 #include <Cardinal.h>
+
+
+// Operation Modes
+#define OPERATION_MODE_CONFIG         0x00
+#define OPERATION_MODE_ACCONLY        0x01
+#define OPERATION_MODE_MAGONLY        0x02
+#define OPERATION_MODE_GYRONLY        0x03
+#define OPERATION_MODE_ACCMAG         0x04
+#define OPERATION_MODE_ACCGYRO        0x05
+#define OPERATION_MODE_MAGGYRO        0x06
+#define OPERATION_MODE_AMG            0x07
+#define OPERATION_MODE_IMUPLUS        0x08
+#define OPERATION_MODE_COMPASS        0x09
+#define OPERATION_MODE_M4G            0x0A
+#define OPERATION_MODE_NDOF_FMC_OFF   0x0B
+#define OPERATION_MODE_NDOF           0x0C
 
 
 // Pin Values
@@ -30,8 +46,8 @@ const int pin_Buzzer = 7;                           // Associate the Piezo Buzze
 
 
 // BNO055 Objects
-Adafruit_BNO055 BNO1 = Adafruit_BNO055(55, 0x28);   // BNO055 Object For The 1st BNO055 IMU
-Adafruit_BNO055 BNO2 = Adafruit_BNO055(55, 0x29);   // BNO055 Object For The 2nd BNO055 IMU
+Adafruit_BNO055_Rocketry BNO1 = Adafruit_BNO055_Rocketry(55, 0x28);   // BNO055 Object For The 1st BNO055 IMU
+Adafruit_BNO055_Rocketry BNO2 = Adafruit_BNO055_Rocketry(55, 0x29);   // BNO055 Object For The 2nd BNO055 IMU
 
 
 // File objects associated with the BNO055 data
@@ -91,6 +107,19 @@ void setup() {
       buzzer_playErrorCode(2, 1, 2);    // BNO055 #2 Failure: 2x Beep - Pause - 1x Beep - Pause - 2x Beep
     }
   }
+
+  delay(100);
+
+  // BNO055 Update Settings
+  BNO1.setMode(OPERATION_MODE_AMG);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
+  delay(50);
+  BNO1.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
+  delay(50);
+
+  BNO2.setMode(OPERATION_MODE_AMG);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
+  delay(50);
+  BNO2.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
+  delay(50);
 
   // BNO055 Calibration
   // ### !!! ### ADD HARDCODED VARIABLES FOR CALIBRATION
@@ -366,7 +395,7 @@ void endProgram() {
 }
 
 // --------------------------------------------------------------------
-// displacementData Related Functions
+// Displacement Related Functions
 // --------------------------------------------------------------------
 
 // Function for calculating the Rocket's displacement
