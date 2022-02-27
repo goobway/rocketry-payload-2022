@@ -16,32 +16,21 @@
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-double accelerationX = 0;
-double accelerationY = 0;
+double accelerationX = 0, accelerationY = 0;
 
-double velocityX = 0;
-double velocityY = 0;
-double vxOld;
-double vyOld;
-double dvX;
-double dvY;
+double velocityX = 0, velocityY = 0;
+double vxOld, vyOld;
+double dvX, dvY;
 
-double positionX;
-double positionY;
-double posxOld;
-double posyOld;
-double deltaX;
-double deltaY;
+double positionX, positionY;
+double posxOld, posyOld;
+double deltaX, deltaY;
 
-double vel_x_filter_new;
-double vel_y_filter_new;
-double vel_x_filter_old = 0;
-double vel_y_filter_old = 0;
+double vel_x_filter_new, vel_y_filter_new;
+double vel_x_filter_old = 0, vel_y_filter_old = 0;
 
-double pos_x_filter_new;
-double pos_y_filter_new;
-double pos_x_filter_old = 0;
-double pos_y_filter_old = 0;
+double pos_x_filter_new, pos_y_filter_new;
+double pos_x_filter_old = 0, pos_y_filter_old = 0;
 
 double dt;
 unsigned long millisOld;
