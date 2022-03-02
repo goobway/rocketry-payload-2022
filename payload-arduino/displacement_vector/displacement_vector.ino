@@ -16,7 +16,11 @@
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-double accelerationX = 0, accelerationY = 0;
+double accelerationX = 0;
+double accelerationY = 0;
+double accelerationZ = 0;
+
+double acc_mag;
 
 double velocityX = 0, velocityY = 0;
 double vxOld, vyOld;
@@ -47,21 +51,33 @@ void setup() {
   
   /* temperature reading */
   int8_t temp = bno.getTemp();
+
+  /* calibration: 0 = least calibrated, 3 = most calibrated */
+  uint8_t system, accCal, gyroCal, magCal = 0;
+
+  while(system != 3){
+    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
+    Serial.print("CALIBRATION: Sys=");
+    Serial.print(system, DEC);
+    Serial.print(" Gyro=");
+    Serial.print(gyroCal, DEC);
+    Serial.print(" Accel=");
+    Serial.print(accCal, DEC);
+    Serial.print(" Mag=");
+    Serial.println(magCal, DEC);
+    delay(100);
+  }
+  Serial.println(""); 
+  Serial.println("Calibrated");
 }
 
 
 void loop(void) {
-  /* calibration: 0 = least calibrated, 3 = most calibrated */
-  uint8_t system, accCal, gyroCal, magCal = 0;
-  
+
   /* vector of 3 components saved to "euler" variable, talking to IMU object*/
-  //imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   /* vector of 3 components saved to "acc" variable, talking to IMU object*/
   imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  /* vector of 3 components saved to "gyro" variable, talking to IMU object*/
-  //imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-  /* vector of 3 components saved to "mag" variable, talking to IMU object*/
-  //imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
 
   /* traking time change, dt in seconds */  
   dt = (millis()-millisOld)/1000.0;
@@ -69,7 +85,10 @@ void loop(void) {
 
   accelerationX = acc.x();
   accelerationY = acc.y();
+  accelerationZ = acc.z();
 
+  acc_mag = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
+  
   /****** finding position on 2D plane, meters ******/
   
   /* velocity x direction */
@@ -99,15 +118,14 @@ void loop(void) {
   Serial.print(", ");
   Serial.print(accelerationY);
   Serial.print(", ");
-  Serial.print(vel_x_filter_old);
-  Serial.print(", ");
-  Serial.print(vel_y_filter_old);
-  Serial.print(", ");  
-  Serial.print(pos_x_filter_new);
-  Serial.print(", ");
-  Serial.print(pos_y_filter_new);
-  Serial.print(", ");
-  Serial.println(accCal);
+  Serial.println(accelerationZ);
+//  Serial.print(vel_x_filter_old);
+//  Serial.print(", ");
+//  Serial.print(vel_y_filter_old);
+//  Serial.print(", ");  
+//  Serial.print(pos_x_filter_new);
+//  Serial.print(", ");
+//  Serial.print(pos_y_filter_new);
 
   /* update filter values */
   pos_x_filter_old = pos_x_filter_new;
