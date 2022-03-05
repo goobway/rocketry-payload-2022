@@ -21,7 +21,7 @@ accZ = []
 empty = ''  # find invalid rows
 for i, row in enumerate(csv_reader):
     if empty not in row:
-        timestamp.append(float(row[0])/1000)
+        timestamp.append(float(row[0])/1000)  # seconds
         accX.append(float(row[4]))
         accY.append(float(row[5]))
         accZ.append(float(row[6]))
@@ -46,10 +46,13 @@ locationY = it.cumtrapz(velocityY, timestamp, initial=0)
 velocityZ = it.cumtrapz(accZ, timestamp, initial=0)
 locationZ = it.cumtrapz(velocityZ, timestamp, initial=0)
 
+# plot location data by time
 plt.plot(timestamp, locationX)
 plt.plot(timestamp, locationY)
 plt.plot(timestamp, locationZ)
-plt.plot(timestamp, np.zeros(len(timestamp)), "--")
+plt.ylabel("DISTANCE TRAVELED, METERS")
+plt.xlabel("TIME, SECONDS")
+plt.plot(timestamp, np.zeros(len(timestamp)), "--", color='black')
 plt.legend(["ALTITUDE", "Y", "X", "ZERO"])
 
 
@@ -60,10 +63,14 @@ y = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 # find starting point
 startX = ord(input("ENTER STARTING POINT X: ")) - 96
 startY = int(input("ENTER STARTING POINT Y: "))
+start = chr(startX + 96)+str(startY)
+start = start.upper()
 
 # find landing point
 endX = startX + locationZ[-1] / 250
 endY = startY + locationY[-1] / 250
+end = chr(round(endX) + 96)+str(round(endY))
+end = end.upper()
 
 # distance between start and end
 d = math.sqrt(((startX - endX)**2) + ((startY - endY)**2))
@@ -78,9 +85,9 @@ ax.set_aspect('equal', adjustable='box')
 plt.plot(startX, startY, color='red', marker="o", markersize=10, markeredgecolor="red", markerfacecolor="red")
 plt.plot(endX, endY, color='blue', marker="o", markersize=10, markeredgecolor="blue", markerfacecolor="blue")
 ax.add_artist(circle)
-plt.legend(["START", "END"])
+plt.legend(["START: " + start, "END: " + end])
 
-ax.set_title('St. Albans Launch Site')
+ax.set_title('ST. ALBANS LAUNCH SITE')
 ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
 ax.set_xticklabels(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"])
 ax.set_yticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
