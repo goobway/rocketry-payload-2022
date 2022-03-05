@@ -1,4 +1,4 @@
-// Name: Jeffrey Matheson
+// Name: UMass Rocket Team
 // Language: Arduino
 // Project: Rocketry 2021-2022 - Payload
 // File: Flight_Code
