@@ -1,23 +1,12 @@
 # Name: Calista Greenway
 # Language: Python
-# Project: Payload - Graphing Live BNO055 Data
-# Date: 2/7/2022
+# Project: Payload Python Attempt
 
 import serial
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
-import math as m
 from drawnow import *
 
 SERIALPORT = '/dev/ttyACM0'
 BAUDRATE = 115200
-
-# data for plotting
-time = []
-pitch = []  # x
-# yaw = []    # y
-roll = []   # z
 
 # enable interactive mode to plot live data
 plt.ion()
@@ -26,21 +15,26 @@ cnt = 0
 # create serial object named 'arduinoData'
 arduinoData = serial.Serial(SERIALPORT, BAUDRATE)
 
+# data from BNO055
+timestamp = []
+posX = []
+posY = []
+posZ = []
+
 
 # plot
 def makeGraph():
-    plt.suptitle('BNO055 Live Sensor Data')
-    plt.subplot(211)
-    line1 = plt.plot(time, pitch)
-    plt.grid(True)  # turn grid ON
-    plt.ylim([-60, 60])
-    plt.subplot(212)
-    line2 = plt.plot(time, roll)
-    plt.ylim([-60, 60])
+    # labels
+    plt.suptitle('BNO055 LIVE SENSOR DATA')
+    plt.xlabel("TIME, SECONDS")
+    plt.ylabel("DISTANCE TRAVELED, FEET")
+    # plot x, y, and z
+    plt.plot(timestamp, posX)
+    plt.plot(timestamp, posY)
+    plt.plot(timestamp, posZ)
+
+    plt.ylim([-20, 20])
     # plt.axes(projection='3d')
-    # plt.xlabel("Pitch: x-axis of the Euler angle vector")
-    # plt.ylabel("Yaw: y-axis of the Euler angle vector")
-    # "Roll: z-axis of the Euler angle vector"
     plt.grid(True)  # turn grid ON
     plt.show()
 
@@ -50,18 +44,23 @@ while True:
         pass
     arduinoString = arduinoData.readline()  # read line from serial port
     dataArray = arduinoString.split(b',')
-    timeData = float(dataArray[0])
-    pitchData = float(dataArray[1])
-    # yawData = float(dataArray[1])
-    rollData = float(dataArray[2])
-    time.append(timeData)
-    pitch.append(pitchData)
-    # yaw.append(yawData)
-    roll.append(rollData)
-    drawnow(makeGraph)
-    plt.pause(.000001)  # pause briefly so drawnow does not crash
-    cnt = cnt + 1
-    # hold no more than 100 points in each array
-    if cnt > 100:
-        pitch.pop(0)
-        roll.pop(0)
+    if len(dataArray) == 4:  # skip invalid rows
+        # parse incoming data array
+        timeData = float(dataArray[0])
+        xData = float(dataArray[1])
+        yData = float(dataArray[2])
+        zData = float(dataArray[3])
+        # append data to corresponding array
+        timestamp.append(timeData)
+        posX.append(xData)
+        posY.append(yData)
+        posZ.append(zData)
+        # draw live plot
+        drawnow(makeGraph)
+        plt.pause(.000001)  # pause briefly so drawnow does not crash
+        cnt = cnt + 1
+        # hold no more than 1000 points in each array
+        if cnt > 1000:
+            posX.pop(0)
+            posY.pop(0)
+            posZ.pop(0)

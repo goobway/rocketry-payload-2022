@@ -22,19 +22,19 @@ double accelerationZ = 0;
 
 double acc_mag;
 
-double velocityX = 0, velocityY = 0;
-double vxOld, vyOld;
-double dvX, dvY;
+double velocityX, velocityY, velocityZ;
+double vxOld, vyOld, vzOld;
+double dvX, dvY, dvZ;
 
-double positionX, positionY;
-double posxOld, posyOld;
-double deltaX, deltaY;
+double positionX, positionY, positionZ;
+double posxOld, posyOld, poszOld;
+double deltaX, deltaY, deltaZ;
 
-double vel_x_filter_new, vel_y_filter_new;
-double vel_x_filter_old = 0, vel_y_filter_old = 0;
+double vel_x_filter_new, vel_y_filter_new, vel_z_filter_new;
+double vel_x_filter_old = 0, vel_y_filter_old = 0, vel_z_filter_old = 0;
 
-double pos_x_filter_new, pos_y_filter_new;
-double pos_x_filter_old = 0, pos_y_filter_old = 0;
+double pos_x_filter_new, pos_y_filter_new, pos_z_filter_new;
+double pos_x_filter_old = 0, pos_y_filter_old = 0, pos_z_filter_old = 0;
 
 double dt;
 unsigned long millisOld;
@@ -55,20 +55,20 @@ void setup() {
   /* calibration: 0 = least calibrated, 3 = most calibrated */
   uint8_t system, accCal, gyroCal, magCal = 0;
 
-  while(system != 3){
-    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
-    Serial.print("CALIBRATION: Sys=");
-    Serial.print(system, DEC);
-    Serial.print(" Gyro=");
-    Serial.print(gyroCal, DEC);
-    Serial.print(" Accel=");
-    Serial.print(accCal, DEC);
-    Serial.print(" Mag=");
-    Serial.println(magCal, DEC);
-    delay(100);
-  }
-  Serial.println(""); 
-  Serial.println("Calibrated");
+//  while(system != 3){
+//    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
+//    Serial.print("CALIBRATION: Sys=");
+//    Serial.print(system, DEC);
+//    Serial.print(" Gyro=");
+//    Serial.print(gyroCal, DEC);
+//    Serial.print(" Accel=");
+//    Serial.print(accCal, DEC);
+//    Serial.print(" Mag=");
+//    Serial.println(magCal, DEC);
+//    delay(100);
+//  }
+//  Serial.println(""); 
+//  Serial.println("Calibrated");
 }
 
 
@@ -88,9 +88,9 @@ void loop(void) {
   accelerationZ = acc.z();
 
   acc_mag = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
-  
-  /****** finding position on 2D plane, meters ******/
-  
+
+  /****** finding velocity, m/s ******/
+
   /* velocity x direction */
   dvX = accelerationX * dt;
   velocityX = vxOld + dvX;
@@ -98,6 +98,12 @@ void loop(void) {
   /* velocity y direction */
   dvY = accelerationY * dt;
   velocityY = vyOld + dvY;
+
+  /* velocity z direction */
+  dvZ = accelerationZ * dt;
+  velocityZ = vzOld + dvZ;
+  
+  /****** finding displacement, meters ******/
 
   /* position x direction */
   deltaX = velocityX * dt;
@@ -107,31 +113,56 @@ void loop(void) {
   deltaY = velocityY * dt;
   positionY = posyOld + deltaY;
 
+  /* position z direction */
+  deltaZ = velocityZ * dt;
+  positionZ = poszOld + deltaZ;
+
   /* low-pass filter of measurements */
   vel_x_filter_new = 0.95*vel_x_filter_old + 0.05*velocityX;
-  vel_y_filter_new = 0.95*vel_y_filter_old + 0.05*velocityY;
+  vel_y_filter_new = 0.95*vel_y_filter_old + 0.5*velocityY;
+  vel_z_filter_new = 0.95*vel_z_filter_old + 0.5*velocityZ;
+  
   pos_x_filter_new = 0.95*pos_x_filter_old + 0.05*positionX;
   pos_y_filter_new = 0.95*pos_y_filter_old + 0.05*positionY;
+  pos_z_filter_new = 0.95*pos_z_filter_old + 0.05*positionZ;
+
 
   /* display data */
   Serial.print(accelerationX);
   Serial.print(", ");
   Serial.print(accelerationY);
   Serial.print(", ");
-  Serial.println(accelerationZ);
-//  Serial.print(vel_x_filter_old);
-//  Serial.print(", ");
-//  Serial.print(vel_y_filter_old);
-//  Serial.print(", ");  
-//  Serial.print(pos_x_filter_new);
-//  Serial.print(", ");
-//  Serial.print(pos_y_filter_new);
+  Serial.print(accelerationZ);
+  Serial.print(", ");
+  Serial.print(vel_x_filter_old);
+  Serial.print(", ");
+  Serial.print(vel_y_filter_old);
+  Serial.print(", ");
+  Serial.print(vel_y_filter_old);
+  Serial.print(", ");  
+  Serial.print(pos_x_filter_new);
+  Serial.print(", ");
+  Serial.print(pos_y_filter_new);
+  Serial.print(", ");
+  Serial.println(pos_z_filter_new);
 
   /* update filter values */
-  pos_x_filter_old = pos_x_filter_new;
-  pos_y_filter_old = pos_y_filter_new;
-  vel_x_filter_old = vel_x_filter_new;
-  vel_y_filter_old = vel_y_filter_new;
+
+  posxOld = positionX;
+  posyOld = positionY;
+  poszOld = positionZ;  
+
+  vxOld = velocityX;
+  vyOld = velocityY;
+  vzOld = velocityZ;
+  
+  posxOld = pos_x_filter_new;
+  posyOld = pos_y_filter_new;
+  poszOld = pos_z_filter_new;
+  
+  vxOld = vel_x_filter_new;
+  vyOld = vel_y_filter_new;
+  vzOld = vel_z_filter_new;
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }

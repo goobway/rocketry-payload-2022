@@ -22,13 +22,13 @@ empty = ''  # find invalid rows
 for i, row in enumerate(csv_reader):
     if empty not in row:
         timestamp.append(float(row[0])/1000)  # seconds
-        accX.append(float(row[4]))
-        accY.append(float(row[5]))
-        accZ.append(float(row[6]))
+        accX.append(float(row[4])*3.281)  # feet
+        accY.append(float(row[5])*3.281)  # feet
+        accZ.append(float(row[6])*3.281)  # feet
     if i >= 1500:
         break
 
-# take data from certain range
+# take samples from desired range
 timestamp = timestamp[875:948]
 accX = accX[875:948]
 accY = accY[875:948]
@@ -50,7 +50,7 @@ locationZ = it.cumtrapz(velocityZ, timestamp, initial=0)
 plt.plot(timestamp, locationX)
 plt.plot(timestamp, locationY)
 plt.plot(timestamp, locationZ)
-plt.ylabel("DISTANCE TRAVELED, METERS")
+plt.ylabel("DISTANCE TRAVELED, FEET")
 plt.xlabel("TIME, SECONDS")
 plt.plot(timestamp, np.zeros(len(timestamp)), "--", color='black')
 plt.legend(["ALTITUDE", "Y", "X", "ZERO"])
@@ -67,10 +67,16 @@ start = chr(startX + 96)+str(startY)
 start = start.upper()
 
 # find landing point
-endX = startX + locationZ[-1] / 250
-endY = startY + locationY[-1] / 250
+endX = startX - locationZ[-1] / 250
+endY = startY - locationY[-1] / 250
 end = chr(round(endX) + 96)+str(round(endY))
 end = end.upper()
+
+# actual landing point
+actualX = startX + 2.6
+actualY = startY - 2.6
+actual = chr(round(actualX) + 96)+str(round(actualY))
+actual = actual.upper()
 
 # distance between start and end
 d = math.sqrt(((startX - endX)**2) + ((startY - endY)**2))
@@ -82,12 +88,18 @@ fig = plt.figure()
 ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # main axes
 ax.set_aspect('equal', adjustable='box')
 
-plt.plot(startX, startY, color='red', marker="o", markersize=10, markeredgecolor="red", markerfacecolor="red")
-plt.plot(endX, endY, color='blue', marker="o", markersize=10, markeredgecolor="blue", markerfacecolor="blue")
+# plot functions
+plt.plot(startX, startY, color='red', marker="o", markersize=12, markeredgecolor="red", markerfacecolor="red")
+plt.plot(endX, endY, color='blue', marker="o", markersize=12, markeredgecolor="blue", markerfacecolor="blue")
+plt.plot(actualX, actualY, color='purple', marker="o", markersize=12, markeredgecolor="purple", markerfacecolor="purple")
 ax.add_artist(circle)
-plt.legend(["START: " + start, "END: " + end])
+plt.legend(["START: " + start, "END: " + end, "ACTUAL: " + actual])
 
-ax.set_title('ST. ALBANS LAUNCH SITE')
+# image background
+img = plt.imread("map.png")
+ax.imshow(img, extent=[0, 20, 0, 20])
+
+ax.set_title('VERMONT LAUNCH SITE')
 ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
 ax.set_xticklabels(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"])
 ax.set_yticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
