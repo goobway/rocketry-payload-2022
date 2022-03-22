@@ -32,10 +32,10 @@ def makeGraph():
     plt.plot(timestamp, posX)
     plt.plot(timestamp, posY)
     plt.plot(timestamp, posZ)
-
     plt.ylim([-20, 20])
     # plt.axes(projection='3d')
     plt.grid(True)  # turn grid ON
+    plt.legend(["ALTITUDE", "Y", "X"])
     plt.show()
 
 

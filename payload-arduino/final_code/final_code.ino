@@ -266,7 +266,7 @@ void buzzer_playErrorCode(int count_1, int count_2, int count_3) {
 // --------------------------------------------------------------------
 
 // Function for writing information to the SD Card
-void writeToSD(File fileName, Adafruit_BNO055 sensorNum, unsigned long timestamp) {
+void writeToSD(File fileName, Adafruit_BNO055_Rocketry sensorNum, unsigned long timestamp) {
   // Timestamp
   fileName.print(timestamp);    // Print the current timestamp to the specified file
   fileName.print(",");          // Print a separator to the specified file
@@ -408,9 +408,9 @@ void calculatedisplacementData() {
 // --------------------------------------------------------------------
 
 // Function for obtaining the accelerometer data from the specified BNO055; returns an array of the three axis values
-double* get_accelerometerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+double* get_accelerometerData(Adafruit_BNO055_Rocketry sensorNum) {    // Takes in a BNO055 sensor object
   sensors_event_t accelerometerData;    // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);    // Get the specified data from the specified BNO055 event
+  sensorNum.getEvent(&accelerometerData, Adafruit_BNO055_Rocketry::VECTOR_ACCELEROMETER);    // Get the specified data from the specified BNO055 event
 
   sensors_event_t* event = &accelerometerData;    // Save the data to a sensors_event_t* variable
 
@@ -424,9 +424,9 @@ double* get_accelerometerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO0
 }
 
 // Function for obtaining the linear accelerometer data from the specified BNO055; returns an array of the three axis values
-double* get_linearAccelData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+double* get_linearAccelData(Adafruit_BNO055_Rocketry sensorNum) {    // Takes in a BNO055 sensor object
   sensors_event_t linearAccelData;    // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);    // Get the specified data from the specified BNO055 event
+  sensorNum.getEvent(&linearAccelData, Adafruit_BNO055_Rocketry::VECTOR_LINEARACCEL);    // Get the specified data from the specified BNO055 event
 
   sensors_event_t* event = &linearAccelData;    // Save the data to a sensors_event_t* variable
 
@@ -440,9 +440,9 @@ double* get_linearAccelData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055
 }
 
 // Function for obtaining the gyroscope data from the specified BNO055; returns an array of the three axis values
-double* get_angVelocityData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+double* get_angVelocityData(Adafruit_BNO055_Rocketry sensorNum) {    // Takes in a BNO055 sensor object
   sensors_event_t angVelocityData;    // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);    // Get the specified data from the specified BNO055 event
+  sensorNum.getEvent(&angVelocityData, Adafruit_BNO055_Rocketry::VECTOR_GYROSCOPE);    // Get the specified data from the specified BNO055 event
 
   sensors_event_t* event = &angVelocityData;    // Save the data to a sensors_event_t* variable
 
@@ -456,9 +456,9 @@ double* get_angVelocityData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055
 }
 
 // Function for obtaining the euler angle data from the specified BNO055; returns an array of the three axis values
-double* get_eulerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 sensor object
+double* get_eulerData(Adafruit_BNO055_Rocketry sensorNum) {    // Takes in a BNO055 sensor object
   sensors_event_t orientationData;    // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);    // Get the specified data from the specified BNO055 event
+  sensorNum.getEvent(&orientationData, Adafruit_BNO055_Rocketry::VECTOR_EULER);    // Get the specified data from the specified BNO055 event
 
   sensors_event_t* event = &orientationData;    // Save the data to a sensors_event_t* variable
 
@@ -472,9 +472,9 @@ double* get_eulerData(Adafruit_BNO055 sensorNum) {    // Takes in a BNO055 senso
 }
 
 // Function for obtaining the magnetometer data from the specified BNO055; returns an array of the three axis values
-double* get_magnetometerData(Adafruit_BNO055 sensorNum) {   // Takes in a BNO055 sensor object
+double* get_magnetometerData(Adafruit_BNO055_Rocketry sensorNum) {   // Takes in a BNO055 sensor object
   sensors_event_t magnetometerData;   // Create a sensors_event_t for holding the data event
-  sensorNum.getEvent(&magnetometerData, Adafruit_BNO055::VECTOR_MAGNETOMETER);    // Get the specified data from the specified BNO055 event
+  sensorNum.getEvent(&magnetometerData, Adafruit_BNO055_Rocketry::VECTOR_MAGNETOMETER);    // Get the specified data from the specified BNO055 event
 
   sensors_event_t* event = &magnetometerData;   // Save the data to a sensors_event_t* variable
 

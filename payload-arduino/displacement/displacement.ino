@@ -10,6 +10,7 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 
+
 /* set time delay between samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
 #define PI 3.1415926535897932384626433832795 /* pi */
@@ -25,6 +26,8 @@ double accX, accY, accZ;
 double velX, velY, velZ;
 double disX, disY, disZ;
 double posX, posY, posZ;
+
+int count = 0;
 
 double dt;
 unsigned long millisOld;
@@ -66,8 +69,13 @@ void loop(void) {
   /* vector of 3 components saved to "acc" variable, talking to IMU object*/
   imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
 
+  double timestamp[100];
+  double sampleX[100];
+  double sampleY[100];
+  double sampleZ[100];
+
   /* change in time, seconds */
-  dt = (millis() - millisOld)/1000.0;
+  //dt = (millis() - millisOld)/1000.0;
   millisOld = millis();  
 
   accX = acc.x();
@@ -76,7 +84,7 @@ void loop(void) {
 
 //  velX = velxOld + accX * dt;
 //  velY = velyOld + accY * dt;
-//  velZ = velzOld + accZ * dt;;
+//  velZ = velzOld + accZ * dt;
 //
 //  disX = disxOld + velX * dt;
 //  disY = disyOld + velY * dt;
@@ -90,17 +98,17 @@ void loop(void) {
 //  disY = disyOld + velyOld + ((velY - velyOld) / 2);
 //  disZ = diszOld + velzOld + ((velZ - velzOld) / 2);
 //
-  velX = (accX - accxOld) * dt;
-  velY = (accY - accyOld) * dt;
-  velZ = (accZ - acczOld) * dt;
+//  velX = (accX - accxOld) * dt;
+//  velY = (accY - accyOld) * dt;
+//  velZ = (accZ - acczOld) * dt;
+//
+//  disX = (velX - velxOld) * dt;
+//  disY = (velY - velyOld) * dt;
+//  disZ = (velZ - velzOld) * dt;
 
-  disX = (velX - velxOld) * dt;
-  disY = (velY - velyOld) * dt;
-  disZ = (velZ - velzOld) * dt;
-
-  posX = disX + posxOld;
-  posY = disY + posyOld;
-  posZ = disZ + poszOld;
+//  posX = disX + posxOld;
+//  posY = disY + posyOld;
+//  posZ = disZ + poszOld;
 
   /* print data to serial */
 //  Serial.print(accX);
@@ -115,30 +123,30 @@ void loop(void) {
 //  Serial.print(", ");
 //  Serial.print(velZ);
 //  Serial.print(", "); 
-  Serial.print(millisOld / 1000);
-  Serial.print(", ");  
-  Serial.print(accX);
-  Serial.print(", ");
-  Serial.print(accY);
-  Serial.print(", ");
-  Serial.println(accZ);
+//  Serial.print(millisOld / 1000);
+//  Serial.print(", ");  
+//  Serial.print(accX);
+//  Serial.print(", ");
+//  Serial.print(accY);
+//  Serial.print(", ");
+//  Serial.println(accZ);
 
   /* update values */
-  accxOld = accX;
-  accyOld = accY;
-  acczOld = accZ;
-
-  velxOld = velX;
-  velyOld = velY;
-  velzOld = velZ;
-
-  disxOld = disX;
-  disyOld = disY;
-  diszOld = disZ;
-
-  posxOld = posX;
-  posyOld = posY;
-  poszOld = posZ;
+//  accxOld = accX;
+//  accyOld = accY;
+//  acczOld = accZ;
+//
+//  velxOld = velX;
+//  velyOld = velY;
+//  velzOld = velZ;
+//
+//  disxOld = disX;
+//  disyOld = disY;
+//  diszOld = disZ;
+//
+//  posxOld = posX;
+//  posyOld = posY;
+//  poszOld = posZ;
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
