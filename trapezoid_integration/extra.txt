@@ -1,0 +1,49 @@
+    float lower = time[830];
+    float upper = time.back();
+
+    float integrationX = 0.0, integrationY = 0.0, integrationZ = 0.0;
+    float stepSize, k;
+
+    int i, subInterval;
+
+    /* Finding Sub-Interval */
+    subInterval = 170; // 1000 - 830 samples
+
+    /* Finding Step Size */
+    stepSize = (upper - lower) / subInterval;
+
+    /* X Integration Value */
+    integrationX = accX[830] + accX.back();
+    for (i = 0; i <= subInterval; i++)
+    {
+        k = time[i + 829];
+        integrationX = integrationX + 2 * (accX[i + 829]);
+        // cout << i << ": " << integrationX << endl;
+    }
+
+    integrationX = integrationX * stepSize / 2;
+    //cout << "First integration X: " << integrationX << endl;
+
+    /* Y Integration Value */
+    integrationY = accY[830] + accY.back();
+    for (i = 0; i <= subInterval; i++)
+    {
+        k = time[i + 829];
+        integrationY = integrationY + 2 * (accY[i + 829]);
+        //cout << i << ": " << integrationY << endl;
+    }
+
+    integrationY = integrationY * stepSize / 2;
+    //cout << "First integration Y: " << integrationY << endl;
+
+    /* Z Integration Value */
+    integrationZ = accZ[830] + accZ.back();
+    for (i = 0; i <= subInterval; i++)
+    {
+        k = time[i + 829];
+        integrationZ = integrationZ + 2 * (accZ[i + 829]);
+        // cout << i << ": " << integrationZ << endl;
+    }
+
+    integrationZ = integrationZ * stepSize / 2;
+    //cout << "First integration Z: " << integrationZ << endl;
