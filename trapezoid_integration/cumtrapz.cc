@@ -20,7 +20,7 @@ vector<float> cum_trapz(vector<float> time, vector<float> data, int offset, int 
             upperBound = time[i];
             h = upperBound - lowerBound;
             trapezoid = h * ((data[i - 1] + data[i]) / 2);
-            //cout << i << ": " << trapezoid << endl;
+            //cout << i << ": " << data[i] << endl;
             integration.push_back(trapezoid);
         }
     }
@@ -32,7 +32,7 @@ vector<float> cum_trapz(vector<float> time, vector<float> data, int offset, int 
             upperBound = time[i + offset];
             h = upperBound - lowerBound;
             trapezoid = h * ((data[i - 1] + data[i]) / 2);
-            //cout << i << ": " << trapezoid << endl;
+            // cout << i << ": " << trapezoid << endl;
             integration.push_back(trapezoid);
         }
     }
@@ -61,7 +61,7 @@ int main()
         getline(iss, tempAccY, ',');
         getline(iss, tempAccZ, ',');
         if (firstLine == false)
-        { // skip first line
+        {                                                 // skip first line
             time.push_back(std::stof(tempTime) / 1000.0); // convert to seconds
             accX.push_back(std::stof(tempAccX));
             accY.push_back(std::stof(tempAccY));
@@ -71,13 +71,31 @@ int main()
     }
 
     /* CALCULATIONS */
-    vector<float> velX = cum_trapz(time, accX, 829, 1001, true);
-    vector<float> velY = cum_trapz(time, accY, 829, 1001, true);
-    vector<float> velZ = cum_trapz(time, accZ, 829, 1001, true);
+    vector<float> velX = cum_trapz(time, accX, 829, 1000, true);
+    vector<float> velY = cum_trapz(time, accY, 829, 1000, true);
+    vector<float> velZ = cum_trapz(time, accZ, 829, 1000, true);
 
-    vector<float> dispX = cum_trapz(time, velX, 829, velX.size() + 1, false);
-    vector<float> dispY = cum_trapz(time, velX, 829, velY.size() + 1, false);
-    vector<float> dispZ = cum_trapz(time, velX, 829, velZ.size() + 1, false);
+    vector<float> dispX = cum_trapz(time, velX, 829, velX.size() - 1, false);
+    vector<float> dispY = cum_trapz(time, velY, 829, velY.size() - 1, false);
+    vector<float> dispZ = cum_trapz(time, velZ, 829, velZ.size() - 1, false);
+
+    /* SAVE DATA TO NEW FILES */
+
+    int offset = 829;
+
+    // Velocity
+    ofstream velFile("velocity.csv");
+    for (int n = 0; n < velX.size(); n++)
+    {
+        velFile << time[n + offset] << "," << velX[n] << "," << velY[n] << "," << velZ[n] << endl;
+    }
+
+    // Displacement
+    ofstream dispFile("displacement.csv");
+    for (int n = 0; n < dispX.size(); n++)
+    {
+        dispFile << time[n + offset] << "," << dispX[n] << "," << dispY[n] << "," << dispZ[n] << endl;
+    }
 
     return 0;
 }
