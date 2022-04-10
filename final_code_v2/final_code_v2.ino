@@ -1,10 +1,9 @@
 // Name: UMass Rocket Team
 // Language: Arduino
 // Project: Rocketry 2021-2022 - Payload
-// File: Flight_Code
-// Description: The final code for the payload for the FRR launch.
-// Date: 2/19/2022
- 
+// Description: The final code for the payload for the Alabama launch (final code v2).
+// Date: 4/9/2022
+
 
 // --------------------------------------------------------------------
 // Error Code List
@@ -23,6 +22,7 @@
 #include <Adafruit_BNO055_Rocketry.h>
 #include <utility/imumaths.h>
 #include <Cardinal.h>
+#include <EEPROM.h>
 
 
 // Operation Modes
@@ -44,11 +44,12 @@
 // Pin Values
 const int pin_Buzzer = 30;                           // Associate the Piezo Buzzer with DIGITAL 7
 
+// EEPROM Address
+int EEPROM_ADDRESS = 45;
 
 // BNO055 Objects
 Adafruit_BNO055_Rocketry BNO1 = Adafruit_BNO055_Rocketry(55, 0x28);   // BNO055 Object For The 1st BNO055 IMU
 Adafruit_BNO055_Rocketry BNO2 = Adafruit_BNO055_Rocketry(55, 0x29);   // BNO055 Object For The 2nd BNO055 IMU
-
 
 // File objects associated with the BNO055 data
 File BNO055_1;                                      // File object for the 1st BNO055 data
@@ -58,20 +59,13 @@ File BNO055_2;                                      // File object for the 2nd B
 File displacementData;                              // File object for the displacement calculations
 
 // File objects associated with general data
-File headingData;                                   // File object for the heading information
 File programStartData;                              // File for timestamping the beginning of the program
 
 
 // Flag Variables
-int flag_hasHeading     = 0;    // Flag for marking whether or not the heading of the rocket on the rail has been obtained
 int flag_hasLaunched    = 0;    // Flag for marking whether or not the rocket has launched yet
 int flag_inFlight       = 0;    // Flag for marking whether or not the rocket is in-flight
 int flag_programEnded   = 0;    // Flag for marking whether or not the program was successfully ended
-int flag_isReady        = 0;
-
-
-// Variables for data comparison
-double heading;                 // Variable for holding the initial compass heading of the rocket
 
 
 // Variables For Timing
@@ -88,8 +82,8 @@ unsigned long currentTimestamp              = startTime;                        
 
 // Program Setup
 void setup() {
-  Serial.begin(9600); 
-  
+  Serial.begin(9600);
+
   // Pin Setup
   pinMode(pin_Buzzer, OUTPUT);          // Set the pin associated with the Piezo Buzzer to OUTPUT
 
@@ -123,7 +117,7 @@ void setup() {
   delay(50);
   BNO2.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
   delay(50);
-  
+
   // BNO055 Calibration
   // ### !!! ### ADD HARDCODED VARIABLES FOR CALIBRATION
 
@@ -134,22 +128,37 @@ void setup() {
     }
   }
 
-  SD.remove("dataIMU1.csv");    // Remove "dataIMU1.csv" from the SD Card if it already exists; needed for resetting files between runs
-  SD.remove("dataIMU2.csv");    // Remove "dataIMU2.csv" from the SD Card if it already exists; needed for resetting files between runs
+
+  // SD Card - Handle Files
   SD.remove("dataDisp.csv");    // Remove "dataDisp.csv" from the SD Card if it already exists; needed for resetting files between runs
-  SD.remove("dataHead.csv");    // Remove "dataHead.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("strtTime.txt");    // Remove "strtTime.txt" from the SD Card if it already exists; needed for resetting files between runs
 
-  BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
-  BNO055_1.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_1
-  BNO055_2 = SD.open("dataIMU2.csv", FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
-  BNO055_2.println("Timestamp,Accelerometer [X],Accelerometer [Y],Accelerometer [Z],Gyroscope [X],Gyroscope [Y],Gyroscope [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_2
+  int fileNumber = readIntFromEEPROM(EEPROM_ADDRESS); // Check Value Stored in EEPROM
+
+  // Create new data files (based on EEPROM number)
+  String temp_filename1 = "dataB1_" + String(fileNumber) + ".csv";
+  String temp_filename2 = "dataB2_" + String(fileNumber) + ".csv";
+  char filename1[13]; temp_filename1.toCharArray(filename1, 13);
+  char filename2[13]; temp_filename2.toCharArray(filename2, 13);
+
+  // Increment EEPROM Number (max = 9)
+  if (fileNumber != 9) {
+    fileNumber += 1;
+  } else {
+    fileNumber = 1;
+  }
+  writeIntIntoEEPROM(EEPROM_ADDRESS, fileNumber);
+
+  SD.remove(filename1);    // Remove "dataIMU1_#.csv" from the SD Card if it already exists; needed for resetting files between runs
+  SD.remove(filename2);    // Remove "dataIMU2_#.csv" from the SD Card if it already exists; needed for resetting files between runs
+
+  BNO055_1 = SD.open(filename1, FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
+  BNO055_1.println("Timestamp,Accel [X],Accel [Y],Accel [Z],Gyro [X],Gyro [Y],Gyro [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_1
+  BNO055_2 = SD.open(filename2, FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
+  BNO055_2.println("Timestamp,Accel [X],Accel [Y],Accel [Z],Gyro [X],Gyro [Y],Gyro [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_2
 
   displacementData = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the displacementData file object
   displacementData.println("### !!! ### ADD COLUMN HEADER INFORMATION HERE!!!");    // Print the column headers for displacementData
-
-  headingData = SD.open("dataHead.csv", FILE_WRITE);    // Open the "dataHead.csv" file on the SD Card (in write mode) and associate it with the headingData file object
-  headingData.println("Timestamp,Mag [X],Mag [Y],Mag [Z],Yaw,Cardinal String,Cardinal Int");    // Print the column headers for headingData
 
   programStartData = SD.open("strtTime.txt", FILE_WRITE);   // Open the "strtTime.txt" file on the SD Card (in write mode) and associate it with the programStartData file object
   programStartData.print("Program Start Time (ms): ");    // Print the line starter for programStartData
@@ -159,35 +168,13 @@ void setup() {
 
   // Indicate Successful Start Up
   buzzer_playStartTone();   // Play the "start up" tone to indicate that the program started successfully
-  
-  // Wait for xBee confirmation 
+
+  // Wait for xBee confirmation
   Serial.println("ROCKET: PAYLOAD IS READY");
 }
 
 // Program Loop
 void loop() {
-  // Get Cardinal Heading
-  //  while (!flag_hasHeading) {
-  //    // ### !!! ### Need to ensure that the rocket is on the rail before the heading is read
-  //    getCardinalHeading();
-  //  }
-
-  // Wait until the rocket has launched
-  //  while (!flag_hasLaunched) {
-  //    checkForLaunch();
-  //  }
-
-  // Record data while the rocket is in-flight
-  //  while (flag_inFlight) {
-  //    unsigned long currentTimestamp = millis();
-  //    writeToSD(BNO055_1, BNO1, currentTimestamp);
-  //    writeToSD(BNO055_2, BNO2, currentTimestamp);
-  //
-  //    calculatedisplacementData();
-  //
-  //    // Check to see if the rocket has landed and is "at rest"
-  //    checkForLand();
-  //  }
 
   startTime = millis();   // Update startTime to right before the BNO055s start recording to ensure they go for the full duration
   currentTimestamp = startTime;   // Update currentTimestamp
@@ -270,6 +257,23 @@ void buzzer_playErrorCode(int count_1, int count_2, int count_3) {
 }
 
 // --------------------------------------------------------------------
+// EEPROM Related Functions
+// --------------------------------------------------------------------
+
+void writeIntIntoEEPROM(int address, int number) {
+  byte byte1 = number >> 8;
+  byte byte2 = number & 0xFF;
+  EEPROM.write(address, byte1);
+  EEPROM.write(address + 1, byte2);
+}
+
+int readIntFromEEPROM(int address) {
+  byte byte1 = EEPROM.read(address);
+  byte byte2 = EEPROM.read(address + 1);
+  return (byte1 << 8) + byte2;
+}
+
+// --------------------------------------------------------------------
 // SD Card Related Functions
 // --------------------------------------------------------------------
 
@@ -316,45 +320,6 @@ void writeToSD(File fileName, Adafruit_BNO055_Rocketry sensorNum, unsigned long 
 // Rocket State Related Functions
 // --------------------------------------------------------------------
 
-// Function for obtaining the cardinal heading of the rocket once it is on the rail
-//void getCardinalHeading() {
-//  boolean headingFound = false;
-//  double magX, magY;
-//  double* magPtr = get_magnetometerData(BNO1);   // Save the gyroscoped (euler) data array from the specified BNO055
-//  double calculatedYaw = 0;   // Variable for holding the value of the found heading
-//  int cardinal_integer;
-//  String cardinal_string;
-//  Cardinal cardinal;
-//  magX = magPtr[0];
-//  magY = magPtr[1];
-//
-//  // ### !!! ### ADD CALISTA'S CODE HERE
-//  calculatedYaw = atan2(magY, magX) * 180 / M_PI;
-//  while (calculatedYaw < 0) {
-//    calculatedYaw += 360;
-//  }
-//
-//  cardinal_integer = cardinal.getInteger(3, calculatedYaw);
-//  cardinal_string = cardinal.getString(3, calculatedYaw);
-//
-//  if (headingFound) {
-//    heading = calculatedYaw;
-//    // Magnetometer
-//    headingData.print(magPtr[0]);   // Print the x axis euler data to the specified file
-//    headingData.print(",");    // Print a separator to the specified file
-//    headingData.print(magPtr[1]);   // Print the y axis euler data to the specified file
-//    headingData.print(",");    // Print a separator to the specified file
-//    headingData.print(magPtr[2]);   // Print the z axis euler data to the specified file
-//    headingData.print(",");    // Print a separator to the specified file
-//    headingData.print(calculatedYaw);
-//    headingData.print(",");    // Print a separator to the specified file
-//    headingData.print(cardinal_string);
-//    headingData.print(",");    // Print a separator to the specified file
-//    headingData.println(cardinal_integer);
-//    flag_hasHeading = 1;
-//  }
-//}
-
 // Function for checking if the rocket has launched
 void checkForLaunch() {
   boolean variablesAreDifferent = false;
@@ -383,8 +348,9 @@ void endProgram() {
   BNO055_1.close();           // Close the File object associated with the 1st BNO055
   BNO055_2.close();           // Close the File object associated with the 2nd BNO055
 
+  Serial.println("FINAL COORDINATE: J10");
+
   displacementData.close();   // Close the File object associated with displacementData
-  headingData.close();        // Close the File object associated with headingData
 
   flag_programEnded = 1;      // Set the programEnded flag HIGH so that the function only runs once
 }
@@ -413,7 +379,7 @@ void getFinalCoord() {
   calculatedisplacementData(dispArr);
   double dispX = dispArr[0];
   double dispY = dispArr[1];
-  
+
   // 3. Find new grid coordinate based on start
   int endX = round(startX + (dispX / 250));
   int endY = round(startY + (dispY / 250));

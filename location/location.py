@@ -29,10 +29,10 @@ for i, row in enumerate(csv_reader):
         break
 
 # take samples from desired range
-timestamp = timestamp[875:948]
-accX = accX[875:948]
-accY = accY[875:948]
-accZ = accZ[875:948]
+timestamp = timestamp[875:1050]
+accX = accX[875:1050]
+accY = accY[875:1050]
+accZ = accZ[875:1050]
 
 # CALCULATE X
 velocityX = it.cumtrapz(accX, timestamp, initial=0)

@@ -1,11 +1,30 @@
-void setup() {
-  // put your setup code here, to run once:
+/*
+   Name: Calista Greenway
+   Language: Arduino
+   Project: Rocketry - BNO055 Payload
+   Date: 2/19/2022
+*/
 
+#include <SD.h>
+#include <CSV_Parser.h>
+
+// SD vars
+File bno1;
+
+void setup() {
+  /* initialize */
+  Serial.begin(115200);
+  delay(1000);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop(void) {
+  // Find total number of populated rows in CSV
+  double accX[100];
+  double accY[100];
+  double accZ[100];  
 
+
+  delay(100);
 }
 /*
       xVel = zeros(length(xAcc),1);

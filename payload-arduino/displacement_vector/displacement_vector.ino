@@ -9,6 +9,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <CSV_Parser.h>
 
 /* set time delay between samples */
 #define BNO055_SAMPLERATE_DELAY_MS (100)
@@ -16,25 +17,9 @@
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-double accelerationX = 0;
-double accelerationY = 0;
-double accelerationZ = 0;
-
-double acc_mag;
-
-double velocityX, velocityY, velocityZ;
-double vxOld, vyOld, vzOld;
-double dvX, dvY, dvZ;
-
-double positionX, positionY, positionZ;
-double posxOld, posyOld, poszOld;
-double deltaX, deltaY, deltaZ;
-
-double vel_x_filter_new, vel_y_filter_new, vel_z_filter_new;
-double vel_x_filter_old = 0, vel_y_filter_old = 0, vel_z_filter_old = 0;
-
-double pos_x_filter_new, pos_y_filter_new, pos_z_filter_new;
-double pos_x_filter_old = 0, pos_y_filter_old = 0, pos_z_filter_old = 0;
+vector<double> accX;
+double accY = 0;
+double accZ = 0;
 
 double dt;
 unsigned long millisOld;
@@ -54,21 +39,6 @@ void setup() {
 
   /* calibration: 0 = least calibrated, 3 = most calibrated */
   uint8_t system, accCal, gyroCal, magCal = 0;
-
-//  while(system != 3){
-//    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
-//    Serial.print("CALIBRATION: Sys=");
-//    Serial.print(system, DEC);
-//    Serial.print(" Gyro=");
-//    Serial.print(gyroCal, DEC);
-//    Serial.print(" Accel=");
-//    Serial.print(accCal, DEC);
-//    Serial.print(" Mag=");
-//    Serial.println(magCal, DEC);
-//    delay(100);
-//  }
-//  Serial.println(""); 
-//  Serial.println("Calibrated");
 }
 
 
@@ -83,11 +53,10 @@ void loop(void) {
   dt = (millis()-millisOld)/1000.0;
   millisOld = millis();  
 
-  accelerationX = acc.x();
-  accelerationY = acc.y();
-  accelerationZ = acc.z();
+  accX = acc.x();
+  accY = acc.y();
+  accZ = acc.z();
 
-  acc_mag = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
 
   /****** finding velocity, m/s ******/
 
@@ -117,52 +86,12 @@ void loop(void) {
   deltaZ = velocityZ * dt;
   positionZ = poszOld + deltaZ;
 
-  /* low-pass filter of measurements */
-  vel_x_filter_new = 0.95*vel_x_filter_old + 0.05*velocityX;
-  vel_y_filter_new = 0.95*vel_y_filter_old + 0.5*velocityY;
-  vel_z_filter_new = 0.95*vel_z_filter_old + 0.5*velocityZ;
-  
-  pos_x_filter_new = 0.95*pos_x_filter_old + 0.05*positionX;
-  pos_y_filter_new = 0.95*pos_y_filter_old + 0.05*positionY;
-  pos_z_filter_new = 0.95*pos_z_filter_old + 0.05*positionZ;
-
-
   /* display data */
   Serial.print(accelerationX);
   Serial.print(", ");
   Serial.print(accelerationY);
   Serial.print(", ");
-  Serial.print(accelerationZ);
-  Serial.print(", ");
-  Serial.print(vel_x_filter_old);
-  Serial.print(", ");
-  Serial.print(vel_y_filter_old);
-  Serial.print(", ");
-  Serial.print(vel_y_filter_old);
-  Serial.print(", ");  
-  Serial.print(pos_x_filter_new);
-  Serial.print(", ");
-  Serial.print(pos_y_filter_new);
-  Serial.print(", ");
-  Serial.println(pos_z_filter_new);
-
-  /* update filter values */
-
-  posxOld = positionX;
-  posyOld = positionY;
-  poszOld = positionZ;  
-
-  vxOld = velocityX;
-  vyOld = velocityY;
-  vzOld = velocityZ;
-  
-  posxOld = pos_x_filter_new;
-  posyOld = pos_y_filter_new;
-  poszOld = pos_z_filter_new;
-  
-  vxOld = vel_x_filter_new;
-  vyOld = vel_y_filter_new;
-  vzOld = vel_z_filter_new;
+  Serial.println(accelerationZ);
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }
