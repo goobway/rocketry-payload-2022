@@ -42,10 +42,10 @@
 
 
 // Pin Values
-const int pin_Buzzer = 30;                           // Associate the Piezo Buzzer with DIGITAL 7
+const int pin_Buzzer = 30;                           // Associate the Piezo Buzzer with DIGITAL 30
 
-// EEPROM Address
-int EEPROM_ADDRESS = 45;
+// EEPROM Address (file naming)
+const int EEPROM_ADDRESS = 45;
 
 // BNO055 Objects
 Adafruit_BNO055_Rocketry BNO1 = Adafruit_BNO055_Rocketry(55, 0x28);   // BNO055 Object For The 1st BNO055 IMU
@@ -76,6 +76,10 @@ unsigned long startTime                     = millis();                         
 unsigned long currentTimestamp              = startTime;                            // The current time of the program; is updated while BNO055 data is being recorded
 
 
+// Variables For xBee (latitude)
+float mapCenterX = 34.895440;                        // center X on gridded map
+float mapCenterY = 86.617000;                        // center Y on gridded map
+
 // ====================================================================
 // Setup & Loop
 // ====================================================================
@@ -83,6 +87,8 @@ unsigned long currentTimestamp              = startTime;                        
 // Program Setup
 void setup() {
   Serial.begin(9600);
+  delay(1000);
+  Serial.println("ROCKET: POWERED ON"); Serial.println();
 
   // Pin Setup
   pinMode(pin_Buzzer, OUTPUT);          // Set the pin associated with the Piezo Buzzer to OUTPUT
@@ -107,6 +113,42 @@ void setup() {
 
   delay(100);
 
+  // BNO055 Calibration
+  int eeAddress = 0;
+  long bnoID;
+  bool foundCalib = false;
+
+  EEPROM.get(eeAddress, bnoID);
+
+  adafruit_bno055_offsets_t calibrationData;
+  sensor_t sensor;
+
+  eeAddress += sizeof(long);
+  EEPROM.get(eeAddress, calibrationData);
+
+  Serial.println("OFFSET VALUES");
+  displaySensorOffsets(calibrationData);
+  Serial.println();
+
+  BNO1.setSensorOffsets(calibrationData);
+  foundCalib = true;
+
+  // Find Starting Angles (on Rail)
+  Serial.println();
+  Serial.println("STARTING ANGLES");
+
+  int i = 0;
+  while (i < 10) {
+    double* eulerPtr = get_eulerData(BNO1);            // Save the gyroscope (euler) data array from the specified BNO055
+    Serial.print(eulerPtr[0]);                         // Print the x axis gyroscope data to the specified file
+    Serial.print(",");                                 // Print a separator to the specified file
+    Serial.print(eulerPtr[1]);                         // Print the y axis gyroscope data to the specified file
+    Serial.print(",");                                 // Print a separator to the specified file
+    Serial.println(eulerPtr[2]);                       // Print the z axis gyroscope data to the specified file
+    i++;
+  }
+  Serial.println();
+
   // BNO055 Update Settings
   BNO1.setMode(OPERATION_MODE_AMG);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
   delay(50);
@@ -118,9 +160,6 @@ void setup() {
   BNO2.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
   delay(50);
 
-  // BNO055 Calibration
-  // ### !!! ### ADD HARDCODED VARIABLES FOR CALIBRATION
-
   // SD Card Initialization
   if (!SD.begin()) {                    // Try to initialize the SD card (defaults to Pin 10 on the UNO and Pin 53 on the MEGA)
     while (1) {                         // If just the SD Card fails to initialize, play the associated error code
@@ -128,33 +167,15 @@ void setup() {
     }
   }
 
-
   // SD Card - Handle Files
+  SD.remove("dataIMU1.csv");    // Remove "dataIMU1.csv" from the SD Card if it already exists; needed for resetting files between runs
+  SD.remove("dataIMU2.csv");    // Remove "dataIMU2.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataDisp.csv");    // Remove "dataDisp.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("strtTime.txt");    // Remove "strtTime.txt" from the SD Card if it already exists; needed for resetting files between runs
 
-  int fileNumber = readIntFromEEPROM(EEPROM_ADDRESS); // Check Value Stored in EEPROM
-
-  // Create new data files (based on EEPROM number)
-  String temp_filename1 = "dataB1_" + String(fileNumber) + ".csv";
-  String temp_filename2 = "dataB2_" + String(fileNumber) + ".csv";
-  char filename1[13]; temp_filename1.toCharArray(filename1, 13);
-  char filename2[13]; temp_filename2.toCharArray(filename2, 13);
-
-  // Increment EEPROM Number (max = 9)
-  if (fileNumber != 9) {
-    fileNumber += 1;
-  } else {
-    fileNumber = 1;
-  }
-  writeIntIntoEEPROM(EEPROM_ADDRESS, fileNumber);
-
-  SD.remove(filename1);    // Remove "dataIMU1_#.csv" from the SD Card if it already exists; needed for resetting files between runs
-  SD.remove(filename2);    // Remove "dataIMU2_#.csv" from the SD Card if it already exists; needed for resetting files between runs
-
-  BNO055_1 = SD.open(filename1, FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
+  BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
   BNO055_1.println("Timestamp,Accel [X],Accel [Y],Accel [Z],Gyro [X],Gyro [Y],Gyro [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_1
-  BNO055_2 = SD.open(filename2, FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
+  BNO055_2 = SD.open("dataIMU2.csv", FILE_WRITE);   // Open the "dataIMU2.csv" file on the SD Card (in write mode) and associate it with the BNO055_2 file object
   BNO055_2.println("Timestamp,Accel [X],Accel [Y],Accel [Z],Gyro [X],Gyro [Y],Gyro [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_2
 
   displacementData = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the displacementData file object
@@ -163,7 +184,7 @@ void setup() {
   programStartData = SD.open("strtTime.txt", FILE_WRITE);   // Open the "strtTime.txt" file on the SD Card (in write mode) and associate it with the programStartData file object
   programStartData.print("Program Start Time (ms): ");    // Print the line starter for programStartData
   programStartData.println(startTime);    // Print the program start time to programStartData
-  programStartData.close();   // Close the File object associated with programStartData
+  programStartData.close();   // Close the File object associate34°53'43.6"N 86°37'01.2"Wd with programStartData
 
 
   // Indicate Successful Start Up
@@ -184,7 +205,7 @@ void loop() {
     currentTimestamp = millis();                  // Update currentTimestamp
     writeToSD(BNO055_1, BNO1, currentTimestamp);  // Save the current data from BNO055 #1 to the SD Card
     writeToSD(BNO055_2, BNO2, currentTimestamp);  // Save the current data from BNO055 #2 to the SD Card
-    Serial.println("ROCKET: STILL CONNECTED");
+    //Serial.println("ROCKET: RECORDING DATA...");
     delay(dataSampleRate);            // Delay for the length of dataSampleRate
   }
 
@@ -195,7 +216,11 @@ void loop() {
 
   // Play a double tone on loop to indicate that the program has ended
   while (1) {
+    // Send final coordinate to GROUND
+    Serial.println();
     Serial.println("ROCKET: PAYLOAD HAS ENDED");
+    Serial.println(getFinalCoord());
+
     tone(pin_Buzzer, 3500, 100);
     delay(200);
     tone(pin_Buzzer, 4000, 100);
@@ -273,6 +298,23 @@ int readIntFromEEPROM(int address) {
   return (byte1 << 8) + byte2;
 }
 
+void displaySensorOffsets(const adafruit_bno055_offsets_t &calibData) {
+  Serial.print("A: ");
+  Serial.print(calibData.accel_offset_x); Serial.print(" ");
+  Serial.print(calibData.accel_offset_y); Serial.print(" ");
+  Serial.print(calibData.accel_offset_z); Serial.print(" ");
+
+  Serial.print("\nG: ");
+  Serial.print(calibData.gyro_offset_x); Serial.print(" ");
+  Serial.print(calibData.gyro_offset_y); Serial.print(" ");
+  Serial.print(calibData.gyro_offset_z); Serial.print(" ");
+
+  Serial.print("\nM: ");
+  Serial.print(calibData.mag_offset_x); Serial.print(" ");
+  Serial.print(calibData.mag_offset_y); Serial.print(" ");
+  Serial.print(calibData.mag_offset_z); Serial.print(" ");
+}
+
 // --------------------------------------------------------------------
 // SD Card Related Functions
 // --------------------------------------------------------------------
@@ -289,7 +331,8 @@ void writeToSD(File fileName, Adafruit_BNO055_Rocketry sensorNum, unsigned long 
   double* eulerPtr = get_eulerData(sensorNum);            // Save the gyroscope (euler) data array from the specified BNO055
   double* magPtr = get_magnetometerData(sensorNum);       // Save the magnetometer data array from the specified BNO055
 
-
+  float mapCenterX = 44.825130;                        // center X on gridded map
+  float mapCenterY = 73.163810;
   // Accelerometer
   fileName.print(accelPtr[0]);      // Print the x axis accelerometer data to the specified file
   fileName.print(",");              // Print a separator to the specified file
@@ -348,8 +391,6 @@ void endProgram() {
   BNO055_1.close();           // Close the File object associated with the 1st BNO055
   BNO055_2.close();           // Close the File object associated with the 2nd BNO055
 
-  Serial.println("FINAL COORDINATE: J10");
-
   displacementData.close();   // Close the File object associated with displacementData
 
   flag_programEnded = 1;      // Set the programEnded flag HIGH so that the function only runs once
@@ -362,17 +403,18 @@ void endProgram() {
 // Function for calculating the Rocket's displacement
 void calculatedisplacementData(double dispArr[]) {
   // ### !!! ### ADD CODE HERE
-  dispArr[0] = 1000; // dummy val
-  dispArr[1] = 1000; // dummy val
+  dispArr[0] = 1000; // dummy val, feet
+  dispArr[1] = 1000; // dummy val, feet
 }
 
 // Function for determining grid coordinate value
-void getFinalCoord() {
-  // ### !!! ### ADD CODE HERE
+String getFinalCoord() {
   // 1. Fetch starting coordinate (center = J10)
-  // getStartingCoord();
-  int startX = 10;
-  int startY = 10;
+  int startCoord[2];
+  Serial.println("ROCKET: SEND PACKET NOW");
+  getStartingCoord(startCoord);
+  int startX = startCoord[0];
+  int startY = startCoord[1];
 
   // 2. Wait for displacement calculations to finish...
   double dispArr[2];
@@ -382,15 +424,125 @@ void getFinalCoord() {
 
   // 3. Find new grid coordinate based on start
   int endX = round(startX + (dispX / 250));
-  int endY = round(startY + (dispY / 250));
+  int endY = round(startY + (-dispY / 250)); // Y-axis inverted (top = 1) on map
+
+  char letters[21] = {'0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'};
+  String finalCoord = String(letters[endX]) + endY;
+  String startString = String(letters[startX]) + startY;
+
+  Serial.print("START COORDINATE: "); Serial.println(startString);
+  Serial.print("FINAL COORDINATE: ");
+
+  return finalCoord;
 }
 
 // --------------------------------------------------------------------
 // xBee Related Functions
 // --------------------------------------------------------------------
-void getStartingCoord() {
-  // ### !!! ### ADD CODE HERE
+void getStartingCoord(int startCoord[]) {
+  char received = '0';
+  char messageArray[25];                               // stores the whole message sent by GROUND
+  char ilocX[12];                                      // received x coord values (max value: ###.######)
+  char ilocY[12];                                      // received y coord values (max value: ###.######)
+  int i_m = 0;                                         // iterating variable used for messageArray
+  int i_x = 0;                                         // iterating variable used for ilocX
+  int i_y = 0;                                         // iterating variable used for ilocY
+  bool is_ground_talking = false;                      // flag to determine if GROUND is currently sending a message
+  bool reading_xCoord = true;                          // if true, we are reading x coordinate. if false, we are reading y coordinate.
 
+  float xDistFromCenter;
+  float yDistFromCenter;
+
+  while (Serial.available() == 0) {
+    // wait for GROUND to send data packet
+  }
+
+  while (Serial.available() > 0) {                   // runs if ROCKET receives a message from GROUND; message gets concatinated into x and y coordinates
+    is_ground_talking = true;
+
+    received = Serial.read();
+    messageArray[i_m] = received;
+
+    if (received == '|') {                           // determines if ROCKET is reading x coord or y coord
+      reading_xCoord = false;
+      continue;
+    }
+
+    if (reading_xCoord == true) {                    // stores x coords
+      if (received != '<') {
+        ilocX[i_x] = received;
+        i_x ++;
+      }
+    }
+    else {                                           // stores y coords
+      if (received != '>') {
+        ilocY[i_y] = received;
+        i_y ++;
+      }
+    }
+
+    if (messageArray[i_m] == '>') {                  // runs if GROUND has finished sending message
+      is_ground_talking = false;
+    }
+    i_m ++;
+  }
+
+  if ((is_ground_talking == false) && (i_m > 0)) {  // when GROUND has finished sending, message gets turned into floats
+
+    float xVal = atof(ilocX);
+    float yVal = atof(ilocY);
+
+    float xlatlonFromCenter = (xVal - mapCenterX) * -1; // needs to be negated becasue left in W is positive
+    float ylatlonFromCenter = yVal - mapCenterY;
+    long latlonTofeet = (10000 / 90) * 3280.4;
+
+    xDistFromCenter = xlatlonFromCenter * latlonTofeet;
+    yDistFromCenter = ylatlonFromCenter * latlonTofeet;
+
+    // ACKNOWLEDGE TRANSMISSION
+    Serial.println();
+    Serial.print("MESSAGE FROM GROUND RECEIVED");
+    Serial.println();
+
+    Serial.print("Initial X Coordinate: ");
+    Serial.print(xVal, 6);
+    Serial.println();
+
+    Serial.print("Initial Y Coordinate: ");
+    Serial.print(yVal, 6);
+    Serial.println();
+    Serial.println();
+
+    Serial.print("DISPLACEMENT FROM MAP CENTER (Coordinate j10)");
+    Serial.println();
+    Serial.print("X Direction: ");
+    Serial.print(xDistFromCenter);
+    Serial.print(" (ft)");
+    Serial.println();
+    Serial.print("Y Direction: ");
+    Serial.print(yDistFromCenter);
+    Serial.print(" (ft)");
+    Serial.println();
+    // SEND ACKNOWLEDGEMENT TO GROUND
+
+    // CLEAN UP
+    for (int i = 0 ; i < sizeof(messageArray) ; i++) {
+      messageArray[i] = 0;
+    }
+    for (int j = 0; j < sizeof(ilocX); j++) {
+      ilocX[j] = 0;
+    }
+    for (int k = 0; k < sizeof(ilocY); k++) {
+      ilocY[k] = 0;
+    }
+    i_m = 0;
+    i_x = 0;
+    i_y = 0;
+    reading_xCoord = true;
+  }
+
+  startCoord[0] = round(10 + (xDistFromCenter / 250));
+  startCoord[1] = round(10 + (-yDistFromCenter / 250)); // Y-axis inverted (top = 1) on map
 }
 
 

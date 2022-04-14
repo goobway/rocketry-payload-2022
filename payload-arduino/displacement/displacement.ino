@@ -33,42 +33,61 @@
 
 Adafruit_BNO055_Rocketry bno = Adafruit_BNO055_Rocketry();
 
-unsigned long timestamp = millis();  
+unsigned long timestamp = millis();
 
 void setup() {
   /* initialize BNO055 */
-  Serial.begin(115200);
+  Serial.begin(9600);
   bno.begin();
   delay(1000);
-  
-  bno.setMode(OPERATION_MODE_AMG);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
+
+  bno.setMode(OPERATION_MODE_NDOF);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
+  Serial.println("BNO IN NDOF MODE");
   delay(50);
-  bno.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
-  delay(50);
-  
+  //  bno.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
+  //  delay(50);
+
   /* use crystal reference on board (not chip) */
   bno.setExtCrystalUse(true);
-  
+
   /* temperature reading */
   int8_t temp = bno.getTemp();
 
   /* calibration: 0 = least calibrated, 3 = most calibrated */
   uint8_t system, accCal, gyroCal, magCal = 0;
 
-// while((system != 3) & (accCal != 3)){
-//    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
-//    Serial.print("CALIBRATION: Sys=");
-//    Serial.print(system, DEC);
-//    Serial.print(" Gyro=");
-//    Serial.print(gyroCal, DEC);
-//    Serial.print(" Accel=");
-//    Serial.print(accCal, DEC);
-//    Serial.print(" Mag=");
-//    Serial.println(magCal, DEC);
-    //delay(100);
-//  }
-//  Serial.println(""); 
-//  Serial.println("Calibrated");
+  while ((accCal != 3) && (system != 3)) {
+    bno.getCalibration(&system, &gyroCal, &accCal, &magCal);
+    Serial.print("CALIBRATION: Sys=");
+    Serial.print(system, DEC);
+    Serial.print(" Gyro=");
+    Serial.print(gyroCal, DEC);
+    Serial.print(" Accel=");
+    Serial.print(accCal, DEC);
+    Serial.print(" Mag=");
+    Serial.println(magCal, DEC);
+    delay(100);
+  }
+  Serial.println("");
+  Serial.println("Calibrated");
+
+  int i = 0;
+  while (i < 10) {
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055_Rocketry::VECTOR_EULER);
+    Serial.print(euler.x(), 6);
+    Serial.print(", ");
+    Serial.print(euler.y(), 6);
+    Serial.print(", ");
+    Serial.println(euler.z(), 6);
+    i++;
+  }
+
+
+  bno.setMode(OPERATION_MODE_AMG);     // Set the Operation Mode of the sensor to Accelerometer, Magnetometer, and Gyroscope
+  delay(50);
+  bno.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
+  delay(50);
+
 }
 
 
@@ -79,51 +98,51 @@ void loop(void) {
   imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055_Rocketry::VECTOR_GYROSCOPE);
   imu::Vector<3> acclin = bno.getVector(Adafruit_BNO055_Rocketry::VECTOR_LINEARACCEL);
   imu::Vector<3> grav = bno.getVector(Adafruit_BNO055_Rocketry::VECTOR_GRAVITY);
-  
+
   imu::Quaternion quat = bno.getQuat();
   //imu::Quaternion Adafruit_BNO055::getQuat()
 
 
-  /* print data to serial */ 
-  Serial.print(millis()); 
-  Serial.print(", ");    
+  /* print data to serial */
+  Serial.print(millis());
+  Serial.print(", ");
   Serial.print(acc.x(), 6);
   Serial.print(", ");
   Serial.print(acc.y(), 6);
   Serial.print(", ");
   Serial.print(acc.z(), 6);
-//  Serial.print(", ");
-//  Serial.print(euler.x(), 6);
-//  Serial.print(", ");
-//  Serial.print(euler.y(), 6);
-//  Serial.print(", ");
-//  Serial.print(euler.z(), 6);
-  Serial.print(", ");    
+  Serial.print(", ");
+  Serial.print(euler.x(), 6);
+  Serial.print(", ");
+  Serial.print(euler.y(), 6);
+  Serial.print(", ");
+  Serial.print(euler.z(), 6);
+  Serial.print(", ");
   Serial.print(gyro.x(), 6);
   Serial.print(", ");
   Serial.print(gyro.y(), 6);
   Serial.print(", ");
-  Serial.println(gyro.z(), 6);
-//  Serial.print(", ");   
-//  Serial.print(acclin.x(), 6);
-//  Serial.print(", ");
-//  Serial.print(acclin.y(), 6);
-//  Serial.print(", ");
-//  Serial.println(acclin.z(), 6); 
-//  Serial.print(", ");    
-//  Serial.print(grav.x(), 6);
-//  Serial.print(", ");
-//  Serial.print(grav.y(), 6);
-//  Serial.print(", ");
-//  Serial.print(grav.z(), 6);
-//  Serial.print(", ");    
-//  Serial.print(quat.w(), 6);
-//  Serial.print(", ");
-//  Serial.print(quat.x(), 6);
-//  Serial.print(", ");
-//  Serial.print(quat.y(), 6);
-//  Serial.print(", ");
-//  Serial.println(quat.z(), 6);
+  Serial.print(gyro.z(), 6);
+  Serial.print(", ");
+  Serial.print(acclin.x(), 6);
+  Serial.print(", ");
+  Serial.print(acclin.y(), 6);
+  Serial.print(", ");
+  Serial.println(acclin.z(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(grav.x(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(grav.y(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(grav.z(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(quat.w(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(quat.x(), 6);
+  //  Serial.print(", ");
+  //  Serial.print(quat.y(), 6);
+  //  Serial.print(", ");
+  //  Serial.println(quat.z(), 6);
 
   delay(BNO055_SAMPLERATE_DELAY_MS);
 }

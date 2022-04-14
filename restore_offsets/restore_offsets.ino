@@ -152,7 +152,7 @@ void displaySensorOffsets(const adafruit_bno055_offsets_t &calibData)
 /**************************************************************************/
 void setup(void)
 {
-    Serial.begin(115200);
+    Serial.begin(9600);
     delay(1000);
     Serial.println("Orientation Sensor Test"); Serial.println("");
 

@@ -77,8 +77,8 @@ void loop() {
     float xVal = atof(ilocX);
     float yVal = atof(ilocY);
 
-    float xlatlonFromCenter = xVal - mapCenterX;
-    float ylatlonFromCenter = yVal - mapCenterY;
+    float xlatlonFromCenter = (xVal - mapCenterX) * -1; // needs to be negated becasue left in W is positive
+    float ylatlonFromCenter = yVal - mapCenterY; 
     long latlonTofeet = (10000/90)*3280.4;
 
     float xDistFromCenter = xlatlonFromCenter * latlonTofeet;
