@@ -54,6 +54,7 @@ Adafruit_BNO055_Rocketry BNO2 = Adafruit_BNO055_Rocketry(55, 0x29);   // BNO055 
 // File objects associated with the BNO055 data
 File BNO055_1;                                      // File object for the 1st BNO055 data
 File BNO055_2;                                      // File object for the 2nd BNO055 data
+File EulerAngles;
 
 // File objects associated with the displacement data
 File displacementData;                              // File object for the displacement calculations
@@ -137,14 +138,27 @@ void setup() {
   Serial.println();
   Serial.println("STARTING ANGLES");
 
+  // Save Euler data to CSV
+  if (!SD.begin()) {                    // Try to initialize the SD card (defaults to Pin 10 on the UNO and Pin 53 on the MEGA)
+    while (1) { //wait
+    }
+  }
+  SD.remove("dataEule.csv");
+  EulerAngles = SD.open("dataEule.csv", FILE_WRITE);
+
   int i = 0;
   while (i < 10) {
-    double* eulerPtr = get_eulerData(BNO1);            // Save the gyroscope (euler) data array from the specified BNO055
-    Serial.print(eulerPtr[0]);                         // Print the x axis gyroscope data to the specified file
-    Serial.print(",");                                 // Print a separator to the specified file
-    Serial.print(eulerPtr[1]);                         // Print the y axis gyroscope data to the specified file
-    Serial.print(",");                                 // Print a separator to the specified file
-    Serial.println(eulerPtr[2]);                       // Print the z axis gyroscope data to the specified file
+    double* eulerPtr = get_eulerData(BNO1);                 // Save the gyroscope (euler) data array from the specified BNO055
+    EulerAngles.print(eulerPtr[0]);                         // Print the x axis gyroscope data to the specified file
+    Serial.print(eulerPtr[0]);
+    EulerAngles.print(",");                                 // Print a separator to the specified file
+    Serial.print(",");
+    EulerAngles.print(eulerPtr[1]);                         // Print the y axis gyroscope data to the specified file
+    Serial.print(eulerPtr[1]);
+    EulerAngles.print(",");                                 // Print a separator to the specified file
+    Serial.print(",");
+    EulerAngles.println(eulerPtr[2]);                       // Print the z axis gyroscope data to the specified file
+    Serial.println(eulerPtr[2]);
     i++;
   }
   Serial.println();
@@ -192,6 +206,9 @@ void setup() {
 
   // Wait for xBee confirmation
   Serial.println("ROCKET: PAYLOAD IS READY");
+
+  
+  
 }
 
 // Program Loop
@@ -390,6 +407,7 @@ void checkForLand() {
 void endProgram() {
   BNO055_1.close();           // Close the File object associated with the 1st BNO055
   BNO055_2.close();           // Close the File object associated with the 2nd BNO055
+  EulerAngles.close();
 
   displacementData.close();   // Close the File object associated with displacementData
 
@@ -468,7 +486,7 @@ void getStartingCoord(int startCoord[]) {
       continue;
     }
 
-    if (reading_xCoord == true) {                    // stores x coords
+    if (reading_xCoord) {                            // stores x coords
       if (received != '<') {
         ilocX[i_x] = received;
         i_x ++;
