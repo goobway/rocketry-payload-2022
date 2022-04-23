@@ -24,6 +24,9 @@
 #include <Cardinal.h>
 #include <EEPROM.h>
 
+#include <active_status.h>
+#include <quaternion.h>
+#include <fuse_gyro_acc.h>
 
 // Operation Modes
 #define OPERATION_MODE_CONFIG         0x00
@@ -57,6 +60,7 @@ File BNO055_2;                                      // File object for the 2nd B
 File EulerAngles;
 
 // File objects associated with the displacement data
+File PeterAccel;                                    // Calculated linear acceleration data
 File displacementData;                              // File object for the displacement calculations
 
 // File objects associated with general data
@@ -80,6 +84,10 @@ unsigned long currentTimestamp              = startTime;                        
 // Variables For xBee (latitude)
 float mapCenterX = 34.895440;                        // center X on gridded map
 float mapCenterY = 86.617000;                        // center Y on gridded map
+
+
+// Setup Complementary (NEW UPDATE)
+OrientationFusion gyroacc_Fusion(0, 0, 0); //orientation at (0 roll, 0 pitch, 0 yaw, dt = 0.1)
 
 // ====================================================================
 // Setup & Loop
@@ -138,11 +146,13 @@ void setup() {
   Serial.println();
   Serial.println("STARTING ANGLES");
 
-  // Save Euler data to CSV
+  // SD Card Initialization
   if (!SD.begin()) {                    // Try to initialize the SD card (defaults to Pin 10 on the UNO and Pin 53 on the MEGA)
-    while (1) { //wait
+    while (1) {                         // If just the SD Card fails to initialize, play the associated error code
+      buzzer_playErrorCode(3, 2, 1);    // SD Card Failure: 3x Beep - Pause - 2x Beep - Pause - 1x Beep
     }
   }
+
   SD.remove("dataEule.csv");
   EulerAngles = SD.open("dataEule.csv", FILE_WRITE);
 
@@ -161,6 +171,11 @@ void setup() {
     Serial.println(eulerPtr[2]);
     i++;
   }
+
+  //INITAILIZE INITIAL ORIENTATION (NEW UPDATE)
+  double* eulerptr = get_eulerData(BNO1);
+  gyroacc_Fusion.UpdateInitOrientation(eulerptr[1], eulerptr[0], eulerptr[2]); //Roll: x; pitch: y; z: yaw
+
   Serial.println();
 
   // BNO055 Update Settings
@@ -174,18 +189,11 @@ void setup() {
   BNO2.setGRange(0x0F);                 // Set the sensor's G Range to 16Gs
   delay(50);
 
-  // SD Card Initialization
-  if (!SD.begin()) {                    // Try to initialize the SD card (defaults to Pin 10 on the UNO and Pin 53 on the MEGA)
-    while (1) {                         // If just the SD Card fails to initialize, play the associated error code
-      buzzer_playErrorCode(3, 2, 1);    // SD Card Failure: 3x Beep - Pause - 2x Beep - Pause - 1x Beep
-    }
-  }
-
   // SD Card - Handle Files
   SD.remove("dataIMU1.csv");    // Remove "dataIMU1.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataIMU2.csv");    // Remove "dataIMU2.csv" from the SD Card if it already exists; needed for resetting files between runs
   SD.remove("dataDisp.csv");    // Remove "dataDisp.csv" from the SD Card if it already exists; needed for resetting files between runs
-  SD.remove("strtTime.txt");    // Remove "strtTime.txt" from the SD Card if it already exists; needed for resetting files between runs
+  SD.remove("PeteAccl.csv");
 
   BNO055_1 = SD.open("dataIMU1.csv", FILE_WRITE);   // Open the "dataIMU1.csv" file on the SD Card (in write mode) and associate it with the BNO055_1 file object
   BNO055_1.println("Timestamp,Accel [X],Accel [Y],Accel [Z],Gyro [X],Gyro [Y],Gyro [Z],Mag [X], Mag [Y], Mag [Z]");    // Print the column headers for BNO055_1
@@ -195,20 +203,37 @@ void setup() {
   displacementData = SD.open("dataDisp.csv", FILE_WRITE);   // Open the "dataDisp.csv" file on the SD Card (in write mode) and associated it with the displacementData file object
   displacementData.println("### !!! ### ADD COLUMN HEADER INFORMATION HERE!!!");    // Print the column headers for displacementData
 
-  programStartData = SD.open("strtTime.txt", FILE_WRITE);   // Open the "strtTime.txt" file on the SD Card (in write mode) and associate it with the programStartData file object
-  programStartData.print("Program Start Time (ms): ");    // Print the line starter for programStartData
-  programStartData.println(startTime);    // Print the program start time to programStartData
-  programStartData.close();   // Close the File object associate34°53'43.6"N 86°37'01.2"Wd with programStartData
-
+  PeterAccel = SD.open("PeteAccl.csv", FILE_WRITE);
+  PeterAccel.println("Timestamp,LinAcc [X],LinAcc [Y],LinAcc [Z]");
 
   // Indicate Successful Start Up
   buzzer_playStartTone();   // Play the "start up" tone to indicate that the program started successfully
 
+  // Compass Heading
+  Serial.println("ROCKET: SEND HEADING ANGLE");
+  while (Serial.available() == 0) {
+    // wait for GROUND to send data packet
+  }
+  char received;
+  char messageArray[3];
+  int j = 0;
+
+  while (j < 3) {
+    if (Serial.available() > 0) {
+      received = Serial.read();
+      messageArray[j] = received;
+      j++;
+    }
+  }
+
+  delay(1000);
+
+  Serial.print("HEADING:  ");
+  Serial.println(atoi(messageArray));
+
   // Wait for xBee confirmation
   Serial.println("ROCKET: PAYLOAD IS READY");
-
-  
-  
+  //Serial.println("ROCKET: READY TO START TIMER?");
 }
 
 // Program Loop
@@ -217,10 +242,45 @@ void loop() {
   startTime = millis();   // Update startTime to right before the BNO055s start recording to ensure they go for the full duration
   currentTimestamp = startTime;   // Update currentTimestamp
 
+  // Define previous
+  double prevLinearAcc[] = {0, 0, 0};
+  double prevVel[] = {0, 0, 0};
+
   // Record data from the BNO055s for the length of recordDurationMilliseconds
   while ((currentTimestamp - startTime) < recordDurationMilliseconds) {
     currentTimestamp = millis();                  // Update currentTimestamp
-    writeToSD(BNO055_1, BNO1, currentTimestamp);  // Save the current data from BNO055 #1 to the SD Card
+    //Get new orientation and update it (NEW UPDATE)
+    double* accelPtr = get_accelerometerData(BNO1);    // Save the accelerometer data array from the specified BNO055
+    double* gyroPtr = get_angVelocityData(BNO1);
+    //We can do some KF to get 1 sensor reading here (but later...)
+    double accel[] = {accelPtr[0], accelPtr[1], accelPtr[2]};
+    double gyro[] = {gyroPtr[0], gyroPtr[1], gyroPtr[2]};
+    gyroacc_Fusion.FuseGyroAcc(accel, gyro, 0.1); // 0.1 is dt
+
+    //Orientation to quaternion (NEW UPDATE)
+    Quaternion quat;
+    quat = quat.euler_to_quaternion(gyroacc_Fusion.roll, gyroacc_Fusion.pitch, gyroacc_Fusion.yaw);
+    //Rotate
+    auto rotatedGVector = quat.rotate(Quaternion(0, 0, 9.81)); //Rotate vecotr [0,0,9.8] by a quaternion determined by roll, pitch, yaw
+    double LinearAcc[] = {accelPtr[0] - rotatedGVector.b, accelPtr[1] - rotatedGVector.c, accelPtr[2] - rotatedGVector.d};
+
+    PeterAccel.print(currentTimestamp);
+    PeterAccel.print(",");
+    PeterAccel.print(LinearAcc[0]);
+    PeterAccel.print(",");
+    PeterAccel.print(LinearAcc[1]);
+    PeterAccel.print(",");
+    PeterAccel.println(LinearAcc[2]);
+
+    // Call calc. displacement
+    //calculatedisplacementData(LinearAcc[0]);    
+
+    // Update values
+    prevLinearAcc[0] = LinearAcc[0]; 
+    prevLinearAcc[1] = LinearAcc[1];
+    prevLinearAcc[2] = LinearAcc[2];
+
+      writeToSD(BNO055_1, BNO1, currentTimestamp);  // Save the current data from BNO055 #1 to the SD Card
     writeToSD(BNO055_2, BNO2, currentTimestamp);  // Save the current data from BNO055 #2 to the SD Card
     //Serial.println("ROCKET: RECORDING DATA...");
     delay(dataSampleRate);            // Delay for the length of dataSampleRate
@@ -302,19 +362,6 @@ void buzzer_playErrorCode(int count_1, int count_2, int count_3) {
 // EEPROM Related Functions
 // --------------------------------------------------------------------
 
-void writeIntIntoEEPROM(int address, int number) {
-  byte byte1 = number >> 8;
-  byte byte2 = number & 0xFF;
-  EEPROM.write(address, byte1);
-  EEPROM.write(address + 1, byte2);
-}
-
-int readIntFromEEPROM(int address) {
-  byte byte1 = EEPROM.read(address);
-  byte byte2 = EEPROM.read(address + 1);
-  return (byte1 << 8) + byte2;
-}
-
 void displaySensorOffsets(const adafruit_bno055_offsets_t &calibData) {
   Serial.print("A: ");
   Serial.print(calibData.accel_offset_x); Serial.print(" ");
@@ -343,13 +390,9 @@ void writeToSD(File fileName, Adafruit_BNO055_Rocketry sensorNum, unsigned long 
   fileName.print(",");          // Print a separator to the specified file
 
   double* accelPtr = get_accelerometerData(sensorNum);    // Save the accelerometer data array from the specified BNO055
-  double* linAccelPtr = get_linearAccelData(sensorNum);   // Save the linear accelerometer data array from the specified BNO055
   double* gyroPtr = get_angVelocityData(sensorNum);       // Save the gyroscope data array from the specified BNO055
-  double* eulerPtr = get_eulerData(sensorNum);            // Save the gyroscope (euler) data array from the specified BNO055
   double* magPtr = get_magnetometerData(sensorNum);       // Save the magnetometer data array from the specified BNO055
 
-  float mapCenterX = 44.825130;                        // center X on gridded map
-  float mapCenterY = 73.163810;
   // Accelerometer
   fileName.print(accelPtr[0]);      // Print the x axis accelerometer data to the specified file
   fileName.print(",");              // Print a separator to the specified file
@@ -380,34 +423,12 @@ void writeToSD(File fileName, Adafruit_BNO055_Rocketry sensorNum, unsigned long 
 // Rocket State Related Functions
 // --------------------------------------------------------------------
 
-// Function for checking if the rocket has launched
-void checkForLaunch() {
-  boolean variablesAreDifferent = false;
-
-  // ### !!! ### ADD CODE HERE
-
-  if (variablesAreDifferent) {
-    flag_hasLaunched = 1;
-    flag_inFlight = 1;
-  }
-}
-
-// Function for checking if the rocket has landed
-void checkForLand() {
-  boolean hasLanded = false;
-
-  // ### !!! ### ADD CODE HERE
-
-  if (hasLanded) {
-    flag_inFlight = 0;
-  }
-}
-
 // Function for ending the program (i.e. closing the SD Card files, etc)
 void endProgram() {
   BNO055_1.close();           // Close the File object associated with the 1st BNO055
   BNO055_2.close();           // Close the File object associated with the 2nd BNO055
   EulerAngles.close();
+  PeterAccel.close();
 
   displacementData.close();   // Close the File object associated with displacementData
 
@@ -420,7 +441,6 @@ void endProgram() {
 
 // Function for calculating the Rocket's displacement
 void calculatedisplacementData(double dispArr[]) {
-  // ### !!! ### ADD CODE HERE
   dispArr[0] = 1000; // dummy val, feet
   dispArr[1] = 1000; // dummy val, feet
 }
